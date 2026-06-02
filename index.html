@@ -1081,8 +1081,10 @@
     <div class="hist-title">Historial de reportes</div>
     <div class="hist-filters">
       <input type="date" id="histDate"/>
-      <select id="histProv"><option value="">Todas las provincias</option></select>
-      <select id="histCity"><option value="">Todos los municipios</option></select>
+      <div class="ta-wrap" style="flex:1;min-width:160px">
+        <input type="text" class="ta-input" id="histCityInput" placeholder="Filtrar por municipio…" autocomplete="off" style="font-size:12px;padding:9px 11px"/>
+        <div class="ta-dropdown" id="histCityDrop"></div>
+      </div>
       <button class="hist-search-btn" id="histSearchBtn">Buscar</button>
     </div>
     <div class="hist-results" id="histResults">
@@ -2277,28 +2279,14 @@ function showToast(msg) {
 
 // ── HISTORY MODAL ────────────────────────────────────────────
 (function() {
-  // Default date = today
-  const todayStr = new Date().toISOString().slice(0,10);
-  document.getElementById('histDate').value = todayStr;
-
-  function openHistory() {
-    document.getElementById('histOverlay').classList.add('active');
-  }
-  function closeHistory() {
-    document.getElementById('histOverlay').classList.remove('active');
-  }
-  document.getElementById('openHistory').addEventListener('click', openHistory);
-  document.getElementById('histClose').addEventListener('click', closeHistory);
-  document.getElementById('histOverlay').addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeHistory();
-  });
-
   const GENDER_COLOR = { m:'#5BA3E0', f:'#FF6BB5', gm:'#C77DFF', gf:'#C77DFF' };
   const GENDER_LABEL = { m:'♂ Hombre', f:'♀ Mujer', gm:'🌈 Gay', gf:'🌈 Lesbiana' };
 
-  document.getElementById('histSearchBtn').addEventListener('click', async () => {
-    const dateVal = document.getElementById('histDate').value;
-    const cityVal = document.getElementById('histCity').value;
+  let taHistCity;
+
+  async function runHistSearch() {
+    const dateVal   = document.getElementById('histDate').value;
+    const cityVal   = taHistCity ? taHistCity.get() : null;
     const resultsEl = document.getElementById('histResults');
     resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
 
@@ -2312,8 +2300,8 @@ function showToast(msg) {
       const to   = new Date(dateVal); to.setHours(23,59,59,999);
       query = query.gte('created_at', from.toISOString()).lte('created_at', to.toISOString());
     }
-    if (cityVal) {
-      query = query.or(`origin_city.eq.${cityVal},destination_city.eq.${cityVal}`);
+    if (cityVal && cityVal.name) {
+      query = query.or(`origin_city.eq.${cityVal.name},destination_city.eq.${cityVal.name}`);
     }
 
     const { data, error } = await query;
@@ -2337,7 +2325,27 @@ function showToast(msg) {
           </div>
         </div>`;
     }).join('');
+  }
+
+  function openHistory() {
+    document.getElementById('histOverlay').classList.add('active');
+    // Inicializar typeahead la primera vez
+    if (!taHistCity) {
+      taHistCity = createTypeahead('histCityInput', 'histCityDrop');
+    }
+    // Cargar últimos reportes automáticamente
+    runHistSearch();
+  }
+  function closeHistory() {
+    document.getElementById('histOverlay').classList.remove('active');
+  }
+  document.getElementById('openHistory').addEventListener('click', openHistory);
+  document.getElementById('histClose').addEventListener('click', closeHistory);
+  document.getElementById('histOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeHistory();
   });
+
+  document.getElementById('histSearchBtn').addEventListener('click', runHistSearch);
 })();
 
 // ── LEGAL MODAL ──────────────────────────────────────────────
@@ -2355,7 +2363,6 @@ document.getElementById('legalOverlay').addEventListener('click', e => {
 
 // ── INIT ─────────────────────────────────────────────────────
 async function init() {
-  setupCascades();
   taOrigin = createTypeahead('originInput', 'originDrop');
   taDest   = createTypeahead('destInput',   'destDrop');
 
