@@ -1722,6 +1722,59 @@ function getFicticiaIntervalMs() {
   return Math.round((baseMin + Math.random() * (baseMax - baseMin)) * factor * 1000);
 }
 
+// Mapa de provincias limítrofes (para ficticias cercanas)
+const PROVINCE_NEIGHBORS = {
+  'Madrid':['Toledo','Guadalajara','Segovia','Ávila','Cuenca'],
+  'Barcelona':['Girona','Lleida','Tarragona','Girona'],
+  'Valencia':['Castellón','Alicante','Albacete','Cuenca','Teruel'],
+  'Sevilla':['Huelva','Cádiz','Málaga','Córdoba','Badajoz'],
+  'Zaragoza':['Huesca','Teruel','Lleida','Navarra','La Rioja','Soria','Guadalajara','Castellón'],
+  'Málaga':['Sevilla','Granada','Cádiz'],
+  'Alicante':['Valencia','Murcia','Albacete'],
+  'Murcia':['Alicante','Almería','Granada','Albacete'],
+  'Córdoba':['Sevilla','Jaén','Málaga','Granada','Ciudad Real','Badajoz'],
+  'Valladolid':['Palencia','Burgos','Segovia','Ávila','Zamora','Salamanca','León'],
+  'Bilbao':['Álava','Guipúzcoa'],
+  'Vizcaya':['Álava','Guipúzcoa','Burgos','Cantabria'],
+  'Álava':['Vizcaya','Guipúzcoa','Navarra','Burgos','La Rioja'],
+  'Guipúzcoa':['Vizcaya','Álava','Navarra'],
+  'Navarra':['Guipúzcoa','Álava','La Rioja','Zaragoza','Huesca'],
+  'Granada':['Málaga','Almería','Jaén','Córdoba','Murcia'],
+  'Almería':['Murcia','Granada','Jaén'],
+  'Jaén':['Granada','Córdoba','Ciudad Real','Albacete','Almería'],
+  'Cádiz':['Sevilla','Málaga','Huelva'],
+  'Huelva':['Sevilla','Cádiz','Badajoz'],
+  'Badajoz':['Cáceres','Sevilla','Huelva','Córdoba','Toledo'],
+  'Cáceres':['Badajoz','Salamanca','Ávila','Toledo','Segovia'],
+  'Toledo':['Madrid','Ciudad Real','Cáceres','Badajoz','Ávila','Cuenca'],
+  'Ciudad Real':['Toledo','Cuenca','Albacete','Jaén','Córdoba','Badajoz'],
+  'Albacete':['Murcia','Alicante','Valencia','Cuenca','Ciudad Real','Jaén','Granada'],
+  'Cuenca':['Madrid','Guadalajara','Teruel','Valencia','Albacete','Toledo','Ciudad Real'],
+  'Guadalajara':['Madrid','Cuenca','Teruel','Zaragoza','Soria','Segovia'],
+  'Segovia':['Madrid','Ávila','Valladolid','Burgos','Soria','Guadalajara','Cáceres'],
+  'Ávila':['Madrid','Toledo','Cáceres','Salamanca','Valladolid','Segovia'],
+  'Salamanca':['Ávila','Cáceres','Zamora','Valladolid','Segovia'],
+  'Zamora':['Salamanca','Valladolid','León','Ourense','Pontevedra'],
+  'León':['Zamora','Valladolid','Palencia','Burgos','Asturias','Lugo','Ourense'],
+  'Palencia':['León','Valladolid','Burgos','Cantabria'],
+  'Burgos':['Palencia','León','Cantabria','Vizcaya','Álava','La Rioja','Soria','Segovia'],
+  'Soria':['Burgos','La Rioja','Zaragoza','Guadalajara','Segovia'],
+  'La Rioja':['Álava','Navarra','Zaragoza','Soria','Burgos'],
+  'Huesca':['Navarra','Zaragoza','Lleida','Lérida'],
+  'Lleida':['Huesca','Tarragona','Barcelona','Girona','Zaragoza'],
+  'Tarragona':['Lleida','Barcelona','Castellón'],
+  'Girona':['Barcelona','Lleida'],
+  'Castellón':['Tarragona','Teruel','Valencia','Zaragoza'],
+  'Teruel':['Zaragoza','Castellón','Valencia','Albacete','Cuenca','Guadalajara'],
+  'Asturias':['León','Lugo','Cantabria'],
+  'Cantabria':['Asturias','León','Palencia','Burgos','Vizcaya'],
+  'Lugo':['Asturias','León','Ourense','A Coruña','Pontevedra'],
+  'A Coruña':['Lugo','Pontevedra'],
+  'Ourense':['Zamora','León','Lugo','Pontevedra'],
+  'Pontevedra':['Ourense','Lugo','A Coruña','Zamora'],
+  'Baleares':[],'Las Palmas':[],'Santa Cruz de Tenerife':[],'Ceuta':[],'Melilla':[],
+};
+
 function generateFicticia() {
   const origin = rnd(FICTICIAS_POOL);
   const gender = rnd(['m','m','m','f','f','f','gm','gf']);
@@ -1729,8 +1782,20 @@ function generateFicticia() {
   if (Math.random() < 0.8) {
     dest = origin;
   } else {
-    const allowed = [origin.ca, ...(CA_NEIGHBORS[origin.ca] || [])];
-    const candidates = FICTICIAS_POOL.filter(c => allowed.includes(c.ca) && c.name !== origin.name);
+    const r = Math.random();
+    let candidates;
+    if (r < 0.55) {
+      // 55% del 20%: misma provincia
+      candidates = FICTICIAS_POOL.filter(c => c.ca === origin.ca && c.name !== origin.name);
+    } else if (r < 0.85) {
+      // 30% del 20%: provincia limítrofe
+      const neighborProvs = PROVINCE_NEIGHBORS[origin.ca] || [];
+      candidates = FICTICIAS_POOL.filter(c => neighborProvs.includes(c.ca) && c.name !== origin.name);
+    } else {
+      // 15% del 20%: misma CC.AA. o limítrofe
+      const allowed = [origin.ca, ...(CA_NEIGHBORS[origin.ca] || [])];
+      candidates = FICTICIAS_POOL.filter(c => allowed.includes(c.ca) && c.name !== origin.name);
+    }
     dest = candidates.length ? rnd(candidates) : origin;
   }
   return { origin, dest, gender };
