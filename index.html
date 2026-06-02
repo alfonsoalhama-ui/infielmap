@@ -1852,31 +1852,32 @@ function startFicticiaLoop() {
 }
 
 // ── LIVE ALERT ───────────────────────────────────────────────
-const TEMPLATES_M = [
-  (o,d) => `Un lagarto de ${o} está de caza en ${d}`,
-  (o,d) => `Un bribón de ${o} tiene un lío en ${d}`,
-  (o,d) => `Un pícaro de ${o} está con su amante en ${d}`,
-  (o,d) => `Una fiera de ${o} ha viajado a ${d}`,
-  (o,d) => `Un tunante de ${o} está de escapada en ${d}`,
-  (o,d) => `Un infiel de ${o} está de caza en ${d}`,
-];
-const TEMPLATES_F = [
-  (o,d) => `Una leona de ${o} está de caza en ${d}`,
-  (o,d) => `Una pícara de ${o} tiene un lío en ${d}`,
-  (o,d) => `Una fiera de ${o} ha viajado a ${d}`,
-  (o,d) => `Una tunanta de ${o} está con su amante en ${d}`,
-  (o,d) => `Una bribona de ${o} está de escapada en ${d}`,
-  (o,d) => `Una infiel de ${o} está de caza en ${d}`,
-];
-
 function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function makeAlert(origin, dest, gender) {
   const o = origin || rnd(CITIES).name;
-  let   d = dest   || rnd(CITIES).name;
-  if (d === o) d = rnd(CITIES).name;
-  const templates = (gender === 'f' || gender === 'gf') ? TEMPLATES_F : TEMPLATES_M;
-  return rnd(templates)(o, d);
+  const d = dest   || rnd(CITIES).name;
+  const mismo = o === d;
+
+  if (gender === 'm') {
+    return mismo
+      ? `Un hombre de ${o} está siendo infiel`
+      : `Un hombre de ${o} está siendo infiel con alguien de ${d}`;
+  }
+  if (gender === 'f') {
+    return mismo
+      ? `Una mujer de ${o} está siendo infiel`
+      : `Una mujer de ${o} está siendo infiel con alguien de ${d}`;
+  }
+  if (gender === 'gm') {
+    return mismo
+      ? `Un hombre de ${o} está siendo infiel`
+      : `Un hombre de ${o} está siendo infiel con alguien de ${d}`;
+  }
+  // gf
+  return mismo
+    ? `Una mujer de ${o} está siendo infiel`
+    : `Una mujer de ${o} está siendo infiel con alguien de ${d}`;
 }
 
 const MAX_FEED_MSGS = 5;
