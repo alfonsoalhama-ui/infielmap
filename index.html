@@ -1859,24 +1859,13 @@ function makeAlert(origin, dest, gender) {
   const d = dest   || rnd(CITIES).name;
   const mismo = o === d;
 
-  if (gender === 'm') {
+  if (gender === 'm' || gender === 'gm') {
     return mismo
-      ? `Un hombre de ${o} está siendo infiel`
+      ? `Un hombre de ${o} está siendo infiel con alguien de su propio municipio`
       : `Un hombre de ${o} está siendo infiel con alguien de ${d}`;
   }
-  if (gender === 'f') {
-    return mismo
-      ? `Una mujer de ${o} está siendo infiel`
-      : `Una mujer de ${o} está siendo infiel con alguien de ${d}`;
-  }
-  if (gender === 'gm') {
-    return mismo
-      ? `Un hombre de ${o} está siendo infiel`
-      : `Un hombre de ${o} está siendo infiel con alguien de ${d}`;
-  }
-  // gf
   return mismo
-    ? `Una mujer de ${o} está siendo infiel`
+    ? `Una mujer de ${o} está siendo infiel con alguien de su propio municipio`
     : `Una mujer de ${o} está siendo infiel con alguien de ${d}`;
 }
 
