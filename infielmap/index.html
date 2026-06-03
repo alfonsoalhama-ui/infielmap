@@ -2797,6 +2797,7 @@ function showToast(msg) {
   }
 
   function openHistory() {
+    console.log('[HIST] openHistory llamado');
     document.getElementById('histOverlay').classList.add('active');
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
@@ -2807,6 +2808,7 @@ function showToast(msg) {
       const n = new Date();
       dateInput.value = `${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}-${String(n.getUTCDate()).padStart(2,'0')}`;
     }
+    console.log('[HIST] llamando runHistSearch...');
     runHistSearch();
   }
   function closeHistory() {
