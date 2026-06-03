@@ -2754,8 +2754,8 @@ function showToast(msg) {
       const color = GENDER_COLOR[r.gender] || '#5BA3E0';
       const label = GENDER_LABEL[r.gender] || '';
       const dt    = new Date(r.created_at);
-      const hour  = dt.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
-      const day   = dt.toLocaleDateString('es-ES', { day:'numeric', month:'short' });
+      const hour  = dt.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit', timeZone: 'Europe/Madrid' });
+      const day   = dt.toLocaleDateString('es-ES', { day:'numeric', month:'short', timeZone: 'Europe/Madrid' });
       return `
         <div class="hist-item">
           <div class="hist-bar" style="background:${color}"></div>
