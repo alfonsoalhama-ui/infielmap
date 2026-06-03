@@ -2288,16 +2288,21 @@ let _poolIdx   = 0;
 
 async function loadArrows() {
 
-  // Fetch last 48h
-  const since = new Date(Date.now() - 172800000).toISOString();
-  const { data: recent } = await sb.from('reports')
-    .select('origin_city,destination_city,gender,created_at')
-    .gte('created_at', since)
-    .limit(60);
+  // Buscar los 5 más recientes ampliando la ventana hasta encontrar suficientes
+  let recent = [];
+  for (const horas of [2, 12, 48]) {
+    const since = new Date(Date.now() - horas * 3600000).toISOString();
+    const { data } = await sb.from('reports')
+      .select('origin_city,destination_city,gender,created_at')
+      .gte('created_at', since)
+      .limit(30);
+    if (data && data.length >= 5) { recent = data; break; }
+    if (data && data.length > recent.length) recent = data;
+  }
 
-  if (recent && recent.length) {
+  if (recent.length) {
     recent.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    // Mostrar los 5 más recientes en el feed con animación escalonada (oldest→newest para que newest quede arriba)
+    // Iterar de más antiguo a más nuevo para que el más reciente quede arriba con insertBefore
     recent.slice(0, 5).reverse().forEach((r, i) => setTimeout(() => {
       drawArrow(r.origin_city, r.destination_city, r.gender);
       pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
