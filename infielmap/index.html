@@ -2769,6 +2769,11 @@ function showToast(msg) {
     }
 
     const data = await sbRestSelect(params);
+    console.log('[HIST] params:', params);
+    console.log('[HIST] total registros devueltos:', data ? data.length : 0);
+    if (data && data.length > 0) {
+      console.log('[HIST] primeros 5:', data.slice(0, 5).map(r => `${r.origin_city}→${r.destination_city} (${r.created_at})`));
+    }
     if (!data || data.length === 0) {
       resultsEl.innerHTML = '<div class="hist-empty">No hay reportes para esos filtros.</div>';
       return;
