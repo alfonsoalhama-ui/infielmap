@@ -832,9 +832,9 @@
     /* Botón pestaña del panel — oculto en escritorio */
     #panelToggleBtn {
       display: none;
-      position: absolute;
-      top: 14px;
-      right: -40px;
+      position: fixed;
+      top: 80px;
+      left: 0;
       width: 40px; height: 40px;
       background: var(--accent);
       border: none;
@@ -844,10 +844,11 @@
       cursor: pointer;
       align-items: center;
       justify-content: center;
-      z-index: 1;
+      z-index: 700;
       box-shadow: 3px 0 10px rgba(0,0,0,0.4);
-      transition: background 0.2s;
+      transition: left 0.3s ease, background 0.2s;
     }
+    #panelToggleBtn.panel-open { left: 280px; }
     #panelToggleBtn:hover { background: var(--accent-dark); }
 
     .panel-backdrop {
@@ -1009,6 +1010,7 @@
   </div>
 </header>
 <div class="panel-backdrop" id="panelBackdrop"></div>
+<button id="panelToggleBtn" aria-label="Abrir/cerrar panel">☰</button>
 
 <!-- ════════════════════════════════════════
      AD BANNER 728×90
@@ -1025,8 +1027,6 @@
 
   <!-- ── LEFT PANEL ── -->
   <aside class="left-panel">
-    <!-- Pestaña toggle (solo visible en móvil) -->
-    <button id="panelToggleBtn" aria-label="Abrir/cerrar panel">☰</button>
 
     <!-- 1. Live feed -->
     <div class="live-alert">
@@ -1933,7 +1933,6 @@ function getFicticiaIntervalMs() {
   else if (days < 15) { baseMin = 180; baseMax = 300; }  // 3-5 min
   else                { baseMin = 60;  baseMax = 180; }  // 1-3 min
 
-  if (_real24h > 50)  return null; // detener ficticias
   const factor = _real24h > 20 ? 5 : _real24h > 5 ? 2 : 1;
   return Math.round((baseMin + Math.random() * (baseMax - baseMin)) * factor * 1000);
 }
@@ -2020,7 +2019,6 @@ function generateFicticia() {
 function startFicticiaLoop() {
   function tick() {
     const interval = getFicticiaIntervalMs();
-    if (interval === null) return; // más de 50 reportes reales hoy → parar
     const { origin, dest, gender } = generateFicticia();
     drawArrow(origin.name, dest.name, gender);
     pushFeedMsg(makeAlert(origin.name, dest.name, gender), gender);
@@ -2595,8 +2593,8 @@ function showToast(msg) {
   const backdrop = document.getElementById('panelBackdrop');
   const toggleBtn = document.getElementById('panelToggleBtn');
 
-  function openPanel()  { panel.classList.add('open'); backdrop.classList.add('show'); }
-  function closePanel() { panel.classList.remove('open'); backdrop.classList.remove('show'); }
+  function openPanel()  { panel.classList.add('open'); backdrop.classList.add('show'); toggleBtn.classList.add('panel-open'); toggleBtn.textContent = '✕'; }
+  function closePanel() { panel.classList.remove('open'); backdrop.classList.remove('show'); toggleBtn.classList.remove('panel-open'); toggleBtn.textContent = '☰'; }
 
   toggleBtn.addEventListener('click', () => {
     panel.classList.contains('open') ? closePanel() : openPanel();
