@@ -829,18 +829,23 @@
     .legal-close:hover { color: var(--text); }
 
     /* ── MOBILE ── */
+    /* Botón pestaña del panel — oculto en escritorio */
     #panelToggleBtn {
       display: none;
-      align-items: center;
-      justify-content: center;
-      width: 38px; height: 38px;
+      position: absolute;
+      top: 14px;
+      right: -40px;
+      width: 40px; height: 40px;
       background: var(--accent);
       border: none;
-      border-radius: 8px;
+      border-radius: 0 8px 8px 0;
       color: #fff;
       font-size: 18px;
       cursor: pointer;
-      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      box-shadow: 3px 0 10px rgba(0,0,0,0.4);
       transition: background 0.2s;
     }
     #panelToggleBtn:hover { background: var(--accent-dark); }
@@ -849,32 +854,32 @@
       display: none;
       position: fixed;
       inset: 0;
-      top: 60px;
-      bottom: 28px;
       background: rgba(0,0,0,0.55);
-      z-index: 590;
+      z-index: 550;
     }
     .panel-backdrop.show { display: block; }
 
     @media (max-width: 768px) {
       #panelToggleBtn { display: flex; }
 
+      /* Panel: fuera del flujo, fijo, empieza cerrado */
       .left-panel {
         position: fixed;
         top: 60px; bottom: 28px; left: 0;
+        width: 280px;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
         z-index: 600;
-        width: 280px;
         box-shadow: 4px 0 28px rgba(0,0,0,0.6);
       }
       .left-panel.open { transform: translateX(0); }
 
+      /* App layout ocupa toda la pantalla */
+      .app-layout { left: 0 !important; }
       .ad-banner { display: none; }
       #map { margin-top: 0 !important; }
       .site-footer { left: 0; }
       #cookieBanner { bottom: 36px; }
-      .app-layout { top: 60px; }
     }
 
     /* ── COOKIE BANNER ── */
@@ -998,12 +1003,9 @@
     <div class="logo-text"><span class="infiel">Infielmap</span><span class="mapword" style="font-size:16px;opacity:0.6">.es</span></div>
   </div>
 
-  <div style="display:flex;align-items:center;gap:14px">
-    <button id="panelToggleBtn" aria-label="Abrir panel">☰</button>
-    <div class="total-counter">
-      <span>reportes registrados</span>
-      <span id="totalCounter">—</span>
-    </div>
+  <div class="total-counter">
+    <span>reportes registrados</span>
+    <span id="totalCounter">—</span>
   </div>
 </header>
 <div class="panel-backdrop" id="panelBackdrop"></div>
@@ -1023,6 +1025,8 @@
 
   <!-- ── LEFT PANEL ── -->
   <aside class="left-panel">
+    <!-- Pestaña toggle (solo visible en móvil) -->
+    <button id="panelToggleBtn" aria-label="Abrir/cerrar panel">☰</button>
 
     <!-- 1. Live feed -->
     <div class="live-alert">
