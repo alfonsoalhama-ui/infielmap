@@ -2796,7 +2796,6 @@ async function init() {
 
   await insertarFicticiasPendientes();
   await Promise.all([actualizarTodosLosContadores(), loadArrows()]);
-  startFicticiaLoop();
 }
 
 init().catch(err => console.error('Init error:', err));
