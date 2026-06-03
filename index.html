@@ -2070,21 +2070,22 @@ function startFicticiaLoop() {
       .gte('created_at', since);
 
     if (!count || count === 0) {
-      const now = new Date().toISOString();
-      const { data: inserted } = await sb.from('reports').insert({
+      const insertTime = new Date().toISOString();
+      const { error } = await sb.from('reports').insert({
         gender,
         origin_city:      origin.name,
         destination_city: dest.name,
         is_celebrity:     false,
         confirmed_count:  0,
         is_confirmed:     false,
-      }).select('created_at').single();
-      // Marcar como "nuestro" para que Realtime no lo cuente dos veces
-      const key = (inserted?.created_at || now) + '|' + origin.name + '|' + gender;
-      _recentInserts.add(key);
-      setTimeout(() => _recentInserts.delete(key), 10000);
-      // Actualizar contadores localmente (no esperar a Realtime)
-      bumpStats(gender, inserted?.created_at || now, origin.name);
+      });
+      if (!error) {
+        // Marcar como nuestro para que Realtime no lo cuente dos veces
+        const key = insertTime + '|' + origin.name + '|' + gender;
+        _recentInserts.add(key);
+        setTimeout(() => _recentInserts.delete(key), 10000);
+        bumpStats(gender, insertTime, origin.name);
+      }
     }
 
     // La animación siempre se muestra, haya insertado o no
