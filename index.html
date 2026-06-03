@@ -1246,7 +1246,7 @@
      FOOTER
 ════════════════════════════════════════ -->
 <footer class="site-footer">
-  <span>© 2025 InfielMap</span>
+  <span>© 2026 InfielMap</span>
   <a href="#" onclick="showLegal('privacidad');return false;">Política de privacidad</a>
   <a href="#" onclick="showLegal('aviso');return false;">Aviso legal</a>
 </footer>
@@ -2199,9 +2199,64 @@ async function loadArrows() {
 }
 
 
+// ── FICTICIAS PENDIENTES ──────────────────────────────────────
+async function insertarFicticiasPendientes() {
+  try {
+    const launchTime  = new Date(LAUNCH_DATE).getTime();
+    const now         = Date.now();
+    const INTERVALO   = 8 * 60 * 1000; // 8 min = ritmo del cron
+
+    const esperadas = Math.floor((now - launchTime) / INTERVALO);
+
+    const { count: existentes } = await sb
+      .from('reports')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_fake', true);
+
+    const deficit    = esperadas - (existentes || 0);
+    const aInsertar  = Math.min(Math.max(deficit, 0), 500);
+    if (aInsertar <= 0) return;
+
+    // Desde cuándo interpolar: justo después de la última ficticia existente
+    const { data: ultima } = await sb
+      .from('reports')
+      .select('created_at')
+      .eq('is_fake', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const desde = (ultima && ultima.length > 0)
+      ? new Date(ultima[0].created_at).getTime() + INTERVALO
+      : launchTime;
+
+    const rows = [];
+    for (let i = 0; i < aInsertar; i++) {
+      const { origin, dest, gender } = generateFicticia();
+      const fraction = aInsertar === 1 ? 1 : i / (aInsertar - 1);
+      const ts = new Date(desde + fraction * (now - desde));
+      rows.push({
+        gender,
+        origin_city:      origin.name,
+        destination_city: dest.name,
+        is_fake:          true,
+        is_celebrity:     false,
+        confirmed_count:  0,
+        is_confirmed:     false,
+        created_at:       ts.toISOString(),
+      });
+    }
+
+    for (let i = 0; i < rows.length; i += 50) {
+      await sb.from('reports').insert(rows.slice(i, i + 50));
+    }
+  } catch (err) {
+    console.error('Error insertando ficticias pendientes:', err);
+  }
+}
+
 // ── STATS ────────────────────────────────────────────────────
-async function loadStats() {
-  const now  = new Date();
+async function actualizarTodosLosContadores() {
+  const now      = new Date();
   const todayISO = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const weekDate = new Date(now);
   weekDate.setDate(now.getDate() - ((now.getDay() + 6) % 7));
@@ -2216,12 +2271,10 @@ async function loadStats() {
     sb.from('reports').select('origin_city'),
   ]);
 
-  // Total
-  const total = totRes.count || 0;
+  const total      = totRes.count || 0;
   const todayCount = todRes.count || 0;
   _real24h = todayCount;
 
-  // Rellenar cache con datos reales de DB
   _stats.total       = total;
   _stats.today       = todayCount;
   _stats.week        = wkRes.count || 0;
@@ -2231,21 +2284,19 @@ async function loadStats() {
 
   _updateStatsDisplay();
 
-  // Ranking: poblar _rankData desde Supabase
   if (cityRes.data && cityRes.data.length > 0) {
     const [wkCityRes, todCityRes] = await Promise.all([
       sb.from('reports').select('origin_city').gte('created_at', weekISO),
       sb.from('reports').select('origin_city').gte('created_at', todayISO),
     ]);
 
-    // Limpiar y reconstruir _rankData
     Object.keys(_rankData).forEach(k => delete _rankData[k]);
 
     cityRes.data.forEach(r => {
       if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
       _rankData[r.origin_city].total++;
     });
-    if (wkCityRes.data)  wkCityRes.data.forEach(r => {
+    if (wkCityRes.data) wkCityRes.data.forEach(r => {
       if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
       _rankData[r.origin_city].week++;
     });
@@ -2256,8 +2307,6 @@ async function loadStats() {
 
     _renderRanking();
   }
-
-  return total;
 }
 
 // ── MODAL ────────────────────────────────────────────────────
@@ -2702,19 +2751,27 @@ document.getElementById('legalOverlay').addEventListener('click', e => {
 })();
 
 // ── SUPABASE REALTIME ─────────────────────────────────────────
-// Escucha inserts reales de cualquier usuario y actualiza todos los contadores
-// _recentInserts: timestamps de inserts que hizo ESTE cliente, para no contar dos veces
 const _recentInserts = new Set();
+let _statsDebounce = null;
+
+function debouncedActualizar() {
+  clearTimeout(_statsDebounce);
+  _statsDebounce = setTimeout(actualizarTodosLosContadores, 1000);
+}
 
 sb.channel('reports-realtime')
   .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, payload => {
-    const r = payload.new;
+    const r   = payload.new;
     const key = r.created_at + '|' + r.origin_city + '|' + r.gender;
-    if (_recentInserts.has(key)) { _recentInserts.delete(key); return; } // ya lo contamos nosotros
-    // Reporte de otro usuario o ficticia de otra pestaña → actualizar contadores y mostrar en mapa
-    bumpStats(r.gender, r.created_at, r.origin_city);
-    drawArrow(r.origin_city, r.destination_city, r.gender);
-    pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
+    // Siempre releer contadores desde Supabase (fuente única de verdad)
+    debouncedActualizar();
+    // Animación visual solo si no es nuestro propio reporte
+    if (_recentInserts.has(key)) {
+      _recentInserts.delete(key);
+    } else {
+      drawArrow(r.origin_city, r.destination_city, r.gender);
+      pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
+    }
   })
   .subscribe();
 
@@ -2737,8 +2794,9 @@ async function init() {
     }
   });
 
-  await Promise.all([loadStats(), loadArrows()]);
-  startFicticiaLoop(); // arranca después de saber cuántos reportes reales hay hoy
+  await insertarFicticiasPendientes();
+  await Promise.all([actualizarTodosLosContadores(), loadArrows()]);
+  startFicticiaLoop();
 }
 
 init().catch(err => console.error('Init error:', err));
