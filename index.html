@@ -2291,9 +2291,8 @@ async function loadArrows() {
   // Fetch last 48h
   const since = new Date(Date.now() - 172800000).toISOString();
   const { data: recent } = await sb.from('reports')
-    .select('origin_city,destination_city,gender')
+    .select('origin_city,destination_city,gender,created_at')
     .gte('created_at', since)
-    .order('created_at', { ascending: false })
     .limit(60);
 
   if (recent && recent.length) {
