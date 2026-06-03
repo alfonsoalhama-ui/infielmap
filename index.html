@@ -2769,11 +2769,6 @@ function showToast(msg) {
     }
 
     const data = await sbRestSelect(params);
-    console.log('[HIST] params:', params);
-    console.log('[HIST] total registros devueltos:', data ? data.length : 0);
-    if (data && data.length > 0) {
-      console.log('[HIST] primeros 5:', data.slice(0, 5).map(r => `${r.origin_city}→${r.destination_city} (${r.created_at})`));
-    }
     if (!data || data.length === 0) {
       resultsEl.innerHTML = '<div class="hist-empty">No hay reportes para esos filtros.</div>';
       return;
@@ -2797,18 +2792,14 @@ function showToast(msg) {
   }
 
   function openHistory() {
-    console.log('[HIST] openHistory llamado');
     document.getElementById('histOverlay').classList.add('active');
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
     }
     // Pre-rellenar con hoy en UTC para que coincida exactamente con el ranking
     const dateInput = document.getElementById('histDate');
-    if (!dateInput.value) {
-      const n = new Date();
-      dateInput.value = `${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}-${String(n.getUTCDate()).padStart(2,'0')}`;
-    }
-    console.log('[HIST] llamando runHistSearch...');
+    const _hn = new Date();
+    dateInput.value = `${_hn.getUTCFullYear()}-${String(_hn.getUTCMonth()+1).padStart(2,'0')}-${String(_hn.getUTCDate()).padStart(2,'0')}`;
     runHistSearch();
   }
   function closeHistory() {
