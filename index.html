@@ -2254,13 +2254,20 @@ async function insertarFicticiasPendientes() {
 }
 
 // ── STATS ────────────────────────────────────────────────────
+// Medianoche UTC de hoy — misma referencia en ranking e historial
+function getTodayUTC() {
+  const n = new Date();
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate())).toISOString();
+}
+function getWeekStartUTC() {
+  const n = new Date();
+  const offset = (n.getUTCDay() + 6) % 7; // días desde el lunes
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() - offset)).toISOString();
+}
+
 async function actualizarTodosLosContadores() {
-  const now      = new Date();
-  const todayISO = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const weekDate = new Date(now);
-  weekDate.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  weekDate.setHours(0, 0, 0, 0);
-  const weekISO = weekDate.toISOString();
+  const todayISO = getTodayUTC();
+  const weekISO  = getWeekStartUTC();
 
   const [totRes, todRes, wkRes, gnRes, cityRes] = await Promise.all([
     sb.from('reports').select('*', { count: 'exact', head: true }),
@@ -2618,19 +2625,24 @@ function showToast(msg) {
     const resultsEl = document.getElementById('histResults');
     resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
 
-    const _maxDate = new Date().toISOString(); // nunca mostrar fechas futuras
-    const _minDate = new Date(Date.now() - 90 * 86400000).toISOString(); // máx 90 días atrás
+    const _maxDate = new Date().toISOString();
+    // Sin filtro de fecha → mostrar hoy (mismo corte UTC que el ranking)
+    const _minDate = dateVal
+      ? new Date(Date.now() - 90 * 86400000).toISOString()
+      : getTodayUTC();
 
     let query = sb.from('reports')
       .select('origin_city,destination_city,gender,created_at')
       .lte('created_at', _maxDate)
       .gte('created_at', _minDate)
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(500);
 
     if (dateVal) {
-      const from = new Date(dateVal); from.setHours(0,0,0,0);
-      const to   = new Date(dateVal); to.setHours(23,59,59,999);
+      // Fecha seleccionada: medianoche UTC del día elegido
+      const d = new Date(dateVal);
+      const from = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const to   = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - 1);
       query = query.gte('created_at', from.toISOString()).lte('created_at', to.toISOString());
     }
     if (cityVal && cityVal.name) {
@@ -2662,11 +2674,15 @@ function showToast(msg) {
 
   function openHistory() {
     document.getElementById('histOverlay').classList.add('active');
-    // Inicializar typeahead la primera vez
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
     }
-    // Cargar últimos reportes automáticamente
+    // Pre-rellenar con hoy en UTC para que coincida exactamente con el ranking
+    const dateInput = document.getElementById('histDate');
+    if (!dateInput.value) {
+      const n = new Date();
+      dateInput.value = `${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}-${String(n.getUTCDate()).padStart(2,'0')}`;
+    }
     runHistSearch();
   }
   function closeHistory() {
