@@ -2732,9 +2732,7 @@ function showToast(msg) {
     const _minDate = dateVal ? null : getTodayUTC();
 
     let query = sb.from('reports')
-      .select('origin_city,destination_city,gender,created_at')
-      .order('created_at', { ascending: false })
-      .limit(500);
+      .select('origin_city,destination_city,gender,created_at');
 
     if (dateVal) {
       // Fecha seleccionada: medianoche UTC del día elegido
@@ -2748,6 +2746,7 @@ function showToast(msg) {
     if (cityVal && cityVal.name) {
       query = query.or(`origin_city.eq.${cityVal.name},destination_city.eq.${cityVal.name}`);
     }
+    query = query.order('created_at', { ascending: false }).limit(500);
 
     const { data, error } = await query;
     if (error || !data || data.length === 0) {
