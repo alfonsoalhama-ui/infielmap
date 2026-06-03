@@ -1029,7 +1029,7 @@
     <div class="live-alert">
       <div class="live-header">
         <div class="pulse-dot"></div>
-        <span class="live-label">Ahora mismo</span>
+        <span class="live-label">Últimas infidelidades</span>
       </div>
       <div id="liveFeed"></div>
       <button class="history-link" id="openHistory">Ver historial →</button>
@@ -2183,10 +2183,11 @@ async function loadArrows() {
     .limit(60);
 
   if (recent && recent.length) {
-    // Solo animaciones en el mapa — el feed no muestra históricos (solo inserts en tiempo real)
-    recent.slice(0, 4).forEach((r, i) => setTimeout(() => {
+    // Mostrar los 5 más recientes en el feed con animación escalonada
+    recent.slice(0, 5).forEach((r, i) => setTimeout(() => {
       drawArrow(r.origin_city, r.destination_city, r.gender);
-    }, i * 3000));
+      pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
+    }, i * 1500));
   }
 
   // Cache a pool for the continuous loop
