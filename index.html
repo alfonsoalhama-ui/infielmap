@@ -1896,6 +1896,30 @@ let _real24h = 0; // se rellena en loadStats
 // ── STATS CACHE (para actualizaciones en tiempo real) ─────────
 const _stats = { total: 0, today: 0, week: 0, male: 0, female: 0, totalGender: 0 };
 
+// Ranking en memoria: { ciudad: { total, week, today } }
+const _rankData = {};
+
+function _renderRanking() {
+  const medals = ['gold','silver','bronze','',''];
+  const top5 = Object.entries(_rankData)
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 5);
+  const list = document.getElementById('rankingList');
+  list.innerHTML = top5.map(([city, d], i) => `
+    <div class="ranking-item">
+      <div class="rank-pos ${medals[i]}">${i+1}</div>
+      <div class="rank-body">
+        <div class="rank-city">${city}</div>
+        <div class="rank-stats">
+          <span class="rank-pill"><span class="rn">${d.total}</span>total</span>
+          <span class="rank-pill"><span class="rn">${d.week}</span>sem</span>
+          <span class="rank-pill"><span class="rn">${d.today}</span>hoy</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
 function _updateStatsDisplay() {
   const fmt = n => n.toLocaleString('es-ES');
   document.getElementById('totalCounter').textContent = fmt(_stats.total);
@@ -1908,15 +1932,26 @@ function _updateStatsDisplay() {
   }
 }
 
-// Llama a esto cada vez que entra un reporte nuevo (ficticia o real)
-function bumpStats(gender, isToday = true, isWeek = true) {
+// city = nombre de la ciudad de origen del reporte
+function bumpStats(gender, isToday = true, isWeek = true, city = null) {
+  // Contadores globales
   _stats.total++;
   if (isToday) _stats.today++;
   if (isWeek)  _stats.week++;
   _stats.totalGender++;
-  if (gender === 'm')  _stats.male++;
-  if (gender === 'f')  _stats.female++;
-  // gm/gf no suman a ♂/♀ pero sí al total de género
+  if (gender === 'm') _stats.male++;
+  if (gender === 'f') _stats.female++;
+
+  // Ranking de ciudad
+  if (city) {
+    if (!_rankData[city]) _rankData[city] = { total: 0, week: 0, today: 0 };
+    _rankData[city].total++;
+    if (isWeek)  _rankData[city].week++;
+    if (isToday) _rankData[city].today++;
+    _renderRanking();
+  }
+
+  // Flash en el contador principal
   const cEl = document.getElementById('totalCounter');
   cEl.classList.add('bump');
   setTimeout(() => cEl.classList.remove('bump'), 600);
@@ -2021,7 +2056,7 @@ function startFicticiaLoop() {
     const { origin, dest, gender } = generateFicticia();
     drawArrow(origin.name, dest.name, gender);
     pushFeedMsg(makeAlert(origin.name, dest.name, gender), gender);
-    bumpStats(gender, true, true);
+    bumpStats(gender, true, true, origin.name);
     setTimeout(tick, interval);
   }
   tick();
@@ -2188,35 +2223,30 @@ async function loadStats() {
   _stats.female      = gnRes.data ? gnRes.data.filter(r => r.gender === 'f').length : 0;
   _updateStatsDisplay();
 
-  // Ranking: total + semana + hoy por ciudad
+  // Ranking: poblar _rankData desde Supabase
   if (cityRes.data && cityRes.data.length > 0) {
-    const totals = {}, weeks = {}, todays = {};
-    cityRes.data.forEach(r => { totals[r.origin_city] = (totals[r.origin_city] || 0) + 1; });
-
-    // Fetch semana y hoy por ciudad
     const [wkCityRes, todCityRes] = await Promise.all([
       sb.from('reports').select('origin_city').gte('created_at', weekISO),
       sb.from('reports').select('origin_city').gte('created_at', todayISO),
     ]);
-    if (wkCityRes.data)  wkCityRes.data.forEach(r  => { weeks[r.origin_city]  = (weeks[r.origin_city]  || 0) + 1; });
-    if (todCityRes.data) todCityRes.data.forEach(r  => { todays[r.origin_city] = (todays[r.origin_city] || 0) + 1; });
 
-    const top5 = Object.entries(totals).sort((a,b) => b[1]-a[1]).slice(0, 5);
-    const medals = ['gold','silver','bronze','',''];
-    const list = document.getElementById('rankingList');
-    list.innerHTML = top5.map(([city, cnt], i) => `
-      <div class="ranking-item">
-        <div class="rank-pos ${medals[i]}">${i+1}</div>
-        <div class="rank-body">
-          <div class="rank-city">${city}</div>
-          <div class="rank-stats">
-            <span class="rank-pill"><span class="rn">${cnt}</span>total</span>
-            <span class="rank-pill"><span class="rn">${weeks[city]||0}</span>sem</span>
-            <span class="rank-pill"><span class="rn">${todays[city]||0}</span>hoy</span>
-          </div>
-        </div>
-      </div>
-    `).join('');
+    // Limpiar y reconstruir _rankData
+    Object.keys(_rankData).forEach(k => delete _rankData[k]);
+
+    cityRes.data.forEach(r => {
+      if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
+      _rankData[r.origin_city].total++;
+    });
+    if (wkCityRes.data)  wkCityRes.data.forEach(r => {
+      if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
+      _rankData[r.origin_city].week++;
+    });
+    if (todCityRes.data) todCityRes.data.forEach(r => {
+      if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
+      _rankData[r.origin_city].today++;
+    });
+
+    _renderRanking();
   }
 
   return total;
@@ -2434,10 +2464,7 @@ async function submitReport(gender, originSel, destSel) {
   if (destSel.lat)   CITY_MAP[destSel.name]   = { name: destSel.name,   lat: destSel.lat,   lng: destSel.lng };
 
   drawArrow(originSel.name, destSel.name, gender);
-  bumpStats(gender, true, true);
-
-  const todEl = document.getElementById('statToday');
-  todEl.textContent = ((parseInt(todEl.textContent) || 0) + 1).toLocaleString('es-ES');
+  bumpStats(gender, true, true, originSel.name);
 
   _arrowPool.push({ origin_city: originSel.name, destination_city: destSel.name, gender });
   localStorage.setItem('im_last_report', new Date().toISOString());
