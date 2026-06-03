@@ -1349,7 +1349,6 @@
     <button class="hist-close" id="histClose">✕</button>
     <div class="hist-title">Historial de reportes</div>
     <div class="hist-filters">
-      <input type="date" id="histDate"/>
       <div class="ta-wrap" style="flex:1;min-width:160px">
         <input type="text" class="ta-input" id="histCityInput" placeholder="Filtrar por municipio…" autocomplete="off" style="font-size:12px;padding:9px 11px"/>
         <div class="ta-dropdown" id="histCityDrop"></div>
@@ -1357,7 +1356,7 @@
       <button class="hist-search-btn" id="histSearchBtn">Buscar</button>
     </div>
     <div class="hist-results" id="histResults">
-      <div class="hist-empty">Selecciona un día o municipio y pulsa Buscar</div>
+      <div class="hist-empty">Cargando…</div>
     </div>
   </div>
 </div>
@@ -2288,26 +2287,13 @@ let _poolIdx   = 0;
 
 async function loadArrows() {
 
-  // Obtener reportes recientes via REST directo (evita bugs del SDK CDN con .order())
-  let recent = null;
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/reports?select=origin_city,destination_city,gender,created_at&order=created_at.desc&limit=20`,
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-    );
-    if (res.ok) recent = await res.json();
-    else console.error('[InfielMap] feed REST error', res.status, await res.text());
-  } catch (e) {
-    console.error('[InfielMap] feed fetch error', e);
-    // Fallback: RPC
-    const { data, error } = await sb.rpc('get_recent_reports', { lim: 20 });
-    if (error) console.error('[InfielMap] RPC error', error);
-    else recent = data;
-  }
+  // Mostrar reportes REALES en el feed; si no hay, usar los más recientes de cualquier tipo
+  const reales = await sbRestSelect('select=origin_city,destination_city,gender,created_at&is_fake=eq.false&order=created_at.desc&limit=5');
+  const recent = (reales && reales.length) ? reales
+    : await sbRestSelect('select=origin_city,destination_city,gender,created_at&order=created_at.desc&limit=5');
 
   if (recent && recent.length) {
-    // Iterar de más antiguo a más nuevo para que el más reciente quede arriba con insertBefore
-    recent.slice(0, 5).reverse().forEach((r, i) => setTimeout(() => {
+    recent.slice().reverse().forEach((r, i) => setTimeout(() => {
       drawArrow(r.origin_city, r.destination_city, r.gender);
       pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
     }, i * 1500));
@@ -2747,22 +2733,11 @@ function showToast(msg) {
   let taHistCity;
 
   async function runHistSearch() {
-    const dateVal   = document.getElementById('histDate').value;
     const cityVal   = taHistCity ? taHistCity.get() : null;
     const resultsEl = document.getElementById('histResults');
     resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
 
-    // Construir parámetros REST directos (evita bug SDK CDN con .gte/.order)
-    let params = 'select=origin_city,destination_city,gender,created_at&order=created_at.desc&limit=500';
-
-    if (dateVal) {
-      const d    = new Date(dateVal);
-      const from = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
-      const to   = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - 1).toISOString();
-      params += `&created_at=gte.${from}&created_at=lte.${to}`;
-    } else {
-      params += `&created_at=gte.${getTodayUTC()}`;
-    }
+    let params = 'select=origin_city,destination_city,gender,created_at&order=created_at.desc&limit=200';
     if (cityVal && cityVal.name) {
       const city = encodeURIComponent(cityVal.name);
       params += `&or=(origin_city.eq.${city},destination_city.eq.${city})`;
@@ -2770,7 +2745,7 @@ function showToast(msg) {
 
     const data = await sbRestSelect(params);
     if (!data || data.length === 0) {
-      resultsEl.innerHTML = '<div class="hist-empty">No hay reportes para esos filtros.</div>';
+      resultsEl.innerHTML = '<div class="hist-empty">No hay reportes todavía.</div>';
       return;
     }
 
@@ -2796,10 +2771,6 @@ function showToast(msg) {
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
     }
-    // Pre-rellenar con hoy en UTC para que coincida exactamente con el ranking
-    const dateInput = document.getElementById('histDate');
-    const _hn = new Date();
-    dateInput.value = `${_hn.getUTCFullYear()}-${String(_hn.getUTCMonth()+1).padStart(2,'0')}-${String(_hn.getUTCDate()).padStart(2,'0')}`;
     runHistSearch();
   }
   function closeHistory() {
