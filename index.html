@@ -2074,10 +2074,14 @@ function startFicticiaLoop() {
         origin_city:      origin.name,
         destination_city: dest.name,
         is_celebrity:     false,
+        celebrity_type:   null,
         confirmed_count:  0,
         is_confirmed:     false,
       });
-      if (!error) {
+      if (error) {
+        console.error('[InfielMap] Error al guardar ficticia:', JSON.stringify(error));
+      } else {
+        console.log('[InfielMap] Ficticia guardada OK:', origin.name, gender);
         const key = insertTime + '|' + origin.name + '|' + gender;
         _recentInserts.add(key);
         setTimeout(() => _recentInserts.delete(key), 10000);
