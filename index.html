@@ -1300,14 +1300,15 @@
     <div id="limitMsg" style="display:none;text-align:center;padding:10px 0 4px">
       <div style="font-size:42px;margin-bottom:16px">😏</div>
       <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px">
-        Ya has hecho tu reporte de hoy
+        Vaya, vaya… ¡ya llevas 3 hoy!
       </div>
       <p style="font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:24px">
-        InfielMap permite un reporte por día y usuario.<br>
-        ¡Vuelve mañana si tienes más cotilleos!
+        Parece que tienes mucho que contar, lagarto/a.<br>
+        Por hoy ya has agotado tus 3 reportes diarios.<br>
+        ¡Vuelve mañana con más cotilleos!
       </p>
       <button class="submit-btn" onclick="closeModal()" style="max-width:200px;margin:0 auto;display:block">
-        Entendido
+        Entendido, hasta mañana
       </button>
     </div>
 
@@ -2309,13 +2310,38 @@ async function loadArrows() {
 
 
 // ── FICTICIAS PENDIENTES ──────────────────────────────────────
+// Calcula cuántas ficticias deberían existir desde el lanzamiento hasta `ts`
+// usando el mismo ritmo progresivo que el loop visual
+function calcEsperadas(ts) {
+  const launchTime = new Date(LAUNCH_DATE).getTime();
+  if (ts <= launchTime) return 0;
+
+  // Fases: [duración en ms, intervalo medio en ms]
+  const phases = [
+    [3  * 86400000, 10 * 60000], // días 0-3:  10 min media
+    [4  * 86400000,  7 * 60000], // días 3-7:   7 min media
+    [7  * 86400000,  4 * 60000], // semana 2:   4 min media
+    [Infinity,       2 * 60000], // semana 3+:  2 min media
+  ];
+
+  let expected = 0;
+  let cursor   = launchTime;
+  for (const [dur, interval] of phases) {
+    const phaseEnd = Math.min(cursor + dur, ts);
+    const elapsed  = phaseEnd - cursor;
+    expected      += elapsed / interval;
+    cursor         = phaseEnd;
+    if (cursor >= ts) break;
+  }
+  return Math.floor(expected);
+}
+
 async function insertarFicticiasPendientes() {
   try {
     const launchTime  = new Date(LAUNCH_DATE).getTime();
     const now         = Date.now();
-    const INTERVALO   = 8 * 60 * 1000; // 8 min = ritmo del cron
 
-    const esperadas = Math.floor((now - launchTime) / INTERVALO);
+    const esperadas = calcEsperadas(now);
 
     const { count: existentes } = await sb
       .from('reports')
@@ -2335,7 +2361,7 @@ async function insertarFicticiasPendientes() {
       .limit(1);
 
     const desde = (ultima && ultima.length > 0)
-      ? new Date(ultima[0].created_at).getTime() + INTERVALO
+      ? new Date(ultima[0].created_at).getTime() + 60000
       : launchTime;
 
     const rows = [];
@@ -2442,10 +2468,25 @@ async function actualizarTodosLosContadores() {
 // ── MODAL ────────────────────────────────────────────────────
 let _gender = null;
 
-function hasReportedToday() {
-  const last = localStorage.getItem('im_last_report');
-  if (!last) return false;
-  return new Date(last).toDateString() === new Date().toDateString();
+const MAX_DAILY_REPORTS = 3;
+
+function getTodayReportCount() {
+  const data = localStorage.getItem('im_reports_today');
+  if (!data) return 0;
+  try {
+    const { date, count } = JSON.parse(data);
+    if (date === new Date().toDateString()) return count;
+  } catch {}
+  return 0;
+}
+
+function hasReachedDailyLimit() {
+  return getTodayReportCount() >= MAX_DAILY_REPORTS;
+}
+
+function incrementDailyReportCount() {
+  const count = getTodayReportCount() + 1;
+  localStorage.setItem('im_reports_today', JSON.stringify({ date: new Date().toDateString(), count }));
 }
 
 document.getElementById('notifyBtn').addEventListener('click', () => {
@@ -2455,9 +2496,9 @@ document.getElementById('notifyBtn').addEventListener('click', () => {
   document.querySelectorAll('.field-error').forEach(e => e.style.display = 'none');
   taOrigin.reset();
   taDest.reset();
-  // LÍMITE DIARIO DESACTIVADO TEMPORALMENTE (reactivar antes de lanzar)
-  document.getElementById('notifyForm').style.display = '';
-  document.getElementById('limitMsg').style.display   = 'none';
+  const limitado = hasReachedDailyLimit();
+  document.getElementById('notifyForm').style.display = limitado ? 'none' : '';
+  document.getElementById('limitMsg').style.display   = limitado ? ''     : 'none';
 
   document.getElementById('modalOverlay').classList.add('active');
 });
@@ -2626,7 +2667,7 @@ async function submitReport(gender, originSel, destSel) {
   bumpStats(gender, _now, originSel.name);
 
   _arrowPool.push({ origin_city: originSel.name, destination_city: destSel.name, gender });
-  localStorage.setItem('im_last_report', new Date().toISOString());
+  incrementDailyReportCount();
   return true;
 }
 
