@@ -2296,12 +2296,16 @@ async function loadArrows() {
       .select('origin_city,destination_city,gender,created_at')
       .gte('created_at', since)
       .limit(30);
+    console.log(`[loadArrows] ${horas}h → ${data ? data.length : 0} filas. Primero: ${data?.[0]?.created_at} Último: ${data?.[data?.length-1]?.created_at}`);
     if (data && data.length >= 5) { recent = data; break; }
     if (data && data.length > recent.length) recent = data;
   }
 
+  console.log('[loadArrows] antes sort:', recent.slice(0,3).map(r => r.origin_city + '|' + r.created_at));
+  recent.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  console.log('[loadArrows] después sort top5:', recent.slice(0,5).map(r => r.origin_city + '|' + r.created_at));
+
   if (recent.length) {
-    recent.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     // Iterar de más antiguo a más nuevo para que el más reciente quede arriba con insertBefore
     recent.slice(0, 5).reverse().forEach((r, i) => setTimeout(() => {
       drawArrow(r.origin_city, r.destination_city, r.gender);
