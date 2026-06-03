@@ -1,0 +1,2935 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InfielMap — El mapa de las infidelidades en España</title>
+  <meta name="description" content="El mapa en tiempo real de las infidelidades en España.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="google-adsense-account" content="ca-pub-5593537444748318">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5593537444748318"
+     crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #181E2E;
+      --accent: #E0185C;
+      --accent-dark: #A8103F;
+      --text: #EDE9E0;
+      --muted: #6B7280;
+      --blue: #4A90D9;
+      --pink: #E0185C;
+      --panel-bg: #1E2438;
+      --border: rgba(237,233,224,0.1);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background: rgba(24,30,46,0.97);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+
+    .logo-wrap { display: flex; align-items: center; gap: 13px; }
+
+    .logo-text {
+      font-family: 'Poppins', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0;
+      line-height: 1;
+      user-select: none;
+    }
+    .logo-text .infiel { color: var(--text); }
+    .logo-text .mapword { color: var(--muted); font-weight: 600; }
+
+    .total-counter {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0;
+    }
+    #totalCounter {
+      font-family: 'Poppins', sans-serif;
+      font-size: 22px;
+      color: var(--accent);
+      font-weight: 700;
+      min-width: 64px;
+      text-align: right;
+      transition: color 0.4s;
+    }
+    #totalCounter.bump { color: #fff; }
+
+    /* ── AD BANNER ── */
+    .ad-banner {
+      position: fixed;
+      top: 60px;
+      left: 300px;
+      right: 0;
+      height: 90px;
+      background: rgba(24,30,46,0.95);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 998;
+    }
+    .ad-inner-728 {
+      width: 728px;
+      height: 90px;
+      border: 1px dashed rgba(237,233,224,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ── LEFT PANEL ── siempre fixed, fuera del flujo de app-layout */
+    .left-panel {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      bottom: 28px;
+      width: 300px;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      overflow-x: visible;
+      z-index: 600;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+    .left-panel::-webkit-scrollbar { width: 3px; }
+    .left-panel::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+    /* ── MAIN LAYOUT ── */
+    .app-layout {
+      position: fixed;
+      top: 60px;
+      left: 300px; right: 0; bottom: 28px;
+      display: flex;
+    }
+
+    /* ── LIVE FEED ── */
+    .live-alert {
+      margin: 14px 14px 0;
+      background: rgba(224,24,92,0.06);
+      border: 1px solid rgba(224,24,92,0.30);
+      border-radius: 8px;
+      padding: 10px 14px 12px;
+    }
+    .live-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .pulse-dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: dotPulse 1.6s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(224,24,92,0.5); }
+      50%      { opacity:0.75; box-shadow: 0 0 0 5px rgba(224,24,92,0); }
+    }
+    .live-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    /* Contenedor de mensajes tipo chat temporal */
+    #liveFeed {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+      max-height: 160px;
+    }
+    .feed-msg {
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.45;
+      color: var(--text);
+      padding: 4px 0 4px 10px;
+      border-left: 3px solid var(--accent);
+      transition: opacity 0.7s ease, transform 0.7s ease, max-height 0.7s ease;
+      opacity: 1;
+      transform: translateY(0);
+      max-height: 60px;
+    }
+    .feed-msg.new {
+      animation: slideIn 0.35s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .feed-msg.fading {
+      opacity: 0;
+      transform: translateY(-4px);
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
+    /* ── NOTIFY BUTTON ── */
+    #notifyBtn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      width: calc(100% - 28px);
+      margin: 14px;
+      padding: 13px 18px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #notifyBtn:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(224,24,92,0.4);
+    }
+
+    /* ── STATS GRID ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 0 14px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 10px;
+      text-align: center;
+    }
+    .stat-label {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .stat-label.gender-sym {
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+    .stat-value {
+      font-family: 'Poppins', sans-serif;
+      font-size: 24px;
+      color: var(--accent);
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-size: 9px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 14px 14px 10px;
+    }
+
+    /* ── RANKING ── */
+    .ranking-list { padding: 0 14px 14px; border-bottom: 1px solid var(--border); }
+    .ranking-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 13px;
+    }
+    .rank-pos {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      width: 14px;
+      flex-shrink: 0;
+      padding-top: 2px;
+      text-align: right;
+    }
+    .rank-pos.gold   { color: #FFD700; }
+    .rank-pos.silver { color: #B8BEC8; }
+    .rank-pos.bronze { color: #CD8B5A; }
+    .rank-body { flex: 1; min-width: 0; }
+    .rank-city {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rank-stats { display: flex; gap: 5px; flex-wrap: wrap; }
+    .rank-pill {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .rank-pill .rn { color: var(--accent); font-weight: 700; margin-right: 2px; }
+
+    /* ── LEGEND ── */
+    .legend { padding: 0 14px 14px; border-bottom: 1px solid var(--border); }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .leg-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; opacity: 0.85; }
+    .leg-dot.male   { background: #5BA3E0; }
+    .leg-dot.female { background: #FF6BB5; }
+    .leg-dot.lgbtq  { background: linear-gradient(135deg,#FF0018,#FFA52C,#FFFF41,#008018,#0000F9,#86007D); }
+
+    /* ── AD RECT ── */
+    .ad-rect-wrap { padding: 14px; }
+    .ad-inner-300 {
+      width: 100%;
+      height: 250px;
+      border: 1px dashed rgba(237,233,224,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ── MAP ── */
+    #map {
+      flex: 1;
+      margin-top: 90px;
+    }
+
+    /* ── LEAFLET OVERRIDES ── */
+    .leaflet-container { background: var(--bg); }
+    .leaflet-control-zoom a {
+      background: var(--panel-bg) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    .leaflet-control-attribution {
+      background: rgba(24,30,46,0.8) !important;
+      color: var(--muted) !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a { color: var(--muted) !important; }
+
+    /* ── PULSE ANIMATIONS ── */
+    @keyframes ripple {
+      0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.9; }
+      100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+    }
+    @keyframes rainbowBg {
+      0%   { background: #FF0018; }
+      16%  { background: #FFA52C; }
+      33%  { background: #FFFF41; }
+      50%  { background: #008018; }
+      66%  { background: #0000F9; }
+      83%  { background: #86007D; }
+      100% { background: #FF0018; }
+    }
+    .report-pulse {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      transform: translate(-50%,-50%) scale(0);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .report-pulse.wave-1 { animation: ripple 2.2s ease-out forwards; }
+    .report-pulse.wave-2 { animation: ripple 2.2s ease-out 0.4s forwards; }
+    .report-pulse.wave-3 { animation: ripple 2.2s ease-out 0.8s forwards; }
+    .report-pulse.lgbtq  { animation: ripple 2.2s ease-out forwards, rainbowBg 1s linear infinite; }
+
+    /* ── REPORT PULSE ── */
+    .city-dot {
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: none;
+      border: 1px solid rgba(224,24,92,0.4);
+    }
+    @keyframes cityPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(224,24,92,0.8); }
+      100% { box-shadow: 0 0 0 10px rgba(224,24,92,0); }
+    }
+    .city-dot.pulse { animation: cityPulse 0.9s ease-out; }
+
+    /* ── GENDER LABEL ── */
+    .gender-label {
+      font-size: 13px;
+      line-height: 1;
+      pointer-events: none;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,0.9));
+    }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(24,30,46,0.85);
+      backdrop-filter: blur(8px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal {
+      position: relative;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 38px 36px 34px;
+      width: 420px;
+      max-width: 95vw;
+      transform: translateY(18px);
+      transition: transform 0.3s ease;
+    }
+    .modal-overlay.active .modal { transform: translateY(0); }
+
+    .modal-close {
+      position: absolute;
+      top: 14px; right: 18px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-logo { text-align: center; margin-bottom: 22px; }
+
+    .modal-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      color: var(--text);
+      letter-spacing: 0;
+      margin-bottom: 26px;
+    }
+
+    .form-group { margin-bottom: 18px; }
+
+    .form-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .gender-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .gender-btn {
+      padding: 9px 4px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: 'Poppins', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .gender-btn span { display: block; font-size: 15px; margin-bottom: 3px; }
+    .gender-btn:hover { border-color: var(--accent); color: var(--text); }
+    .gender-btn.selected {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(224,24,92,0.1);
+    }
+
+    select, input[type="email"] {
+      width: 100%;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7280'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 10px 6px;
+      padding-right: 30px;
+    }
+    select option { background: #1E2438; color: var(--text); }
+    select:focus, input[type="email"]:focus { border-color: var(--accent); }
+    select:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── TYPEAHEAD ── */
+    .ta-wrap { position: relative; }
+    .ta-input {
+      width: 100%;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .ta-input:focus { border-color: var(--accent); }
+    .ta-input::placeholder { color: var(--muted); }
+    .ta-dropdown {
+      position: absolute;
+      background: #252C42;
+      border: 1px solid rgba(237,233,224,0.25);
+      border-radius: 8px;
+      z-index: 5000;
+      max-height: 210px;
+      overflow-y: auto;
+      display: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .ta-dropdown.open { display: block; }
+    .ta-item {
+      padding: 9px 13px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(237,233,224,0.05);
+      transition: background 0.15s;
+    }
+    .ta-item:last-child { border-bottom: none; }
+    .ta-item:hover { background: rgba(224,24,92,0.12); }
+    .ta-main { font-size: 12px; font-weight: 600; color: var(--text); }
+    .ta-sub  { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .ta-empty { padding: 12px 13px; font-size: 12px; color: var(--muted); text-align: center; }
+    .ta-loading { padding: 12px 13px; font-size: 12px; color: var(--muted); text-align: center; }
+
+    .field-error {
+      font-size: 10px;
+      color: #e05252;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 13px;
+      margin-top: 6px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .submit-btn:hover { background: var(--accent-dark); box-shadow: 0 4px 16px rgba(224,24,92,0.4); }
+    .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── HISTORY BUTTON ── */
+    .history-link {
+      display: block;
+      text-align: right;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-top: 8px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+    }
+    .history-link:hover { color: var(--text); }
+
+    /* ── HISTORY MODAL ── */
+    .hist-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(24,30,46,0.88);
+      backdrop-filter: blur(8px);
+      z-index: 3500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .hist-overlay.active { opacity: 1; pointer-events: all; }
+    .hist-box {
+      position: relative;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 34px 32px 28px;
+      width: 520px;
+      max-width: 95vw;
+      max-height: 82vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(14px);
+      transition: transform 0.3s ease;
+    }
+    .hist-overlay.active .hist-box { transform: translateY(0); }
+    .hist-close {
+      position: absolute;
+      top: 14px; right: 18px;
+      background: none; border: none;
+      color: var(--muted); font-size: 18px;
+      cursor: pointer; transition: color 0.2s;
+    }
+    .hist-close:hover { color: var(--text); }
+    .hist-title {
+      font-size: 17px; font-weight: 700;
+      color: var(--text); margin-bottom: 20px;
+    }
+    .hist-filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .hist-filters select,
+    .hist-filters input[type="date"] {
+      flex: 1;
+      min-width: 130px;
+      padding: 9px 11px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+      color-scheme: dark;
+    }
+    .hist-filters select { cursor: pointer; }
+    .hist-filters select:focus,
+    .hist-filters input[type="date"]:focus { border-color: var(--accent); }
+    .hist-search-btn {
+      padding: 9px 18px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .hist-search-btn:hover { background: var(--accent-dark); }
+    .hist-results {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+    .hist-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 0;
+    }
+    .hist-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .hist-bar {
+      width: 3px;
+      height: 36px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .hist-info { flex: 1; min-width: 0; }
+    .hist-cities {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .hist-meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .hist-count {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* ── FOOTER ── */
+    .site-footer {
+      position: fixed;
+      bottom: 0; left: 300px; right: 0;
+      height: 28px;
+      background: rgba(24,30,46,0.97);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      z-index: 900;
+      backdrop-filter: blur(6px);
+    }
+    .site-footer span,
+    .site-footer a {
+      font-size: 10px;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+    }
+    .site-footer a:hover { color: var(--text); }
+
+    /* ── LEGAL MODAL ── */
+    .legal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(24,30,46,0.88);
+      backdrop-filter: blur(8px);
+      z-index: 4000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .legal-overlay.active { opacity: 1; pointer-events: all; }
+    .legal-box {
+      position: relative;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 36px 38px 32px;
+      width: 560px;
+      max-width: 94vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      transform: translateY(14px);
+      transition: transform 0.3s ease;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+    .legal-overlay.active .legal-box { transform: translateY(0); }
+    .legal-box h2 {
+      font-size: 17px; font-weight: 700;
+      color: var(--text); margin-bottom: 18px;
+    }
+    .legal-box h3 {
+      font-size: 12px; font-weight: 700;
+      color: var(--accent); margin: 18px 0 6px;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .legal-box p, .legal-box li {
+      font-size: 12px; line-height: 1.7;
+      color: var(--muted);
+    }
+    .legal-box ul { padding-left: 18px; margin-top: 4px; }
+    .legal-close {
+      position: absolute;
+      top: 14px; right: 18px;
+      background: none; border: none;
+      color: var(--muted); font-size: 18px;
+      cursor: pointer; transition: color 0.2s;
+    }
+    .legal-close:hover { color: var(--text); }
+
+    /* ── MOBILE ── */
+    /* Botón pestaña del panel — oculto en escritorio */
+    #panelToggleBtn {
+      display: none;
+      position: fixed;
+      top: 80px;
+      left: 0;
+      width: 40px; height: 40px;
+      background: var(--accent);
+      border: none;
+      border-radius: 0 8px 8px 0;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 700;
+      box-shadow: 3px 0 10px rgba(0,0,0,0.4);
+      transition: left 0.3s ease, background 0.2s;
+    }
+    #panelToggleBtn.panel-open { left: 280px; }
+    #panelToggleBtn:hover { background: var(--accent-dark); }
+
+    .panel-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 550;
+    }
+    .panel-backdrop.show { display: block; }
+
+    @media (max-width: 768px) {
+      #panelToggleBtn { display: flex; }
+
+      /* Panel: fuera del flujo, fijo, empieza cerrado */
+      .left-panel {
+        position: fixed;
+        top: 60px; bottom: 28px; left: 0;
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 600;
+        box-shadow: 4px 0 28px rgba(0,0,0,0.6);
+      }
+      .left-panel.open { transform: translateX(0); }
+
+      /* App layout ocupa toda la pantalla */
+      .app-layout { left: 0 !important; }
+      .ad-banner { display: none; }
+      #map { margin-top: 0 !important; }
+      .site-footer { left: 0; }
+      #cookieBanner { bottom: 36px; }
+    }
+
+    /* ── COOKIE BANNER ── */
+    #cookieBanner {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 640px;
+      max-width: calc(100vw - 32px);
+      background: #252C42;
+      border: 1px solid rgba(237,233,224,0.18);
+      border-radius: 12px;
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      z-index: 9000;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    #cookieBanner.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(12px);
+    }
+    .cookie-text {
+      flex: 1;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .cookie-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .cookie-text a:hover { text-decoration: underline; }
+    .cookie-btns {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .cookie-accept {
+      padding: 9px 18px;
+      background: var(--accent);
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .cookie-accept:hover { background: var(--accent-dark); }
+    .cookie-reject {
+      padding: 9px 14px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--muted);
+      font-family: 'Poppins', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .cookie-reject:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── RANKING COMPLETO MODAL ── */
+    .rankfull-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(24,30,46,0.88);
+      backdrop-filter: blur(8px);
+      z-index: 3500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .rankfull-overlay.active { opacity: 1; pointer-events: all; }
+    .rankfull-box {
+      position: relative;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 34px 32px 24px;
+      width: 560px;
+      max-width: 95vw;
+      max-height: 84vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(14px);
+      transition: transform 0.3s ease;
+    }
+    .rankfull-overlay.active .rankfull-box { transform: translateY(0); }
+    .rankfull-close {
+      position: absolute;
+      top: 14px; right: 18px;
+      background: none; border: none;
+      color: var(--muted); font-size: 18px;
+      cursor: pointer; transition: color 0.2s;
+    }
+    .rankfull-close:hover { color: var(--text); }
+    .rankfull-title {
+      font-size: 17px; font-weight: 700;
+      color: var(--text); margin-bottom: 16px;
+    }
+    .rankfull-search {
+      width: 100%;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 14px;
+    }
+    .rankfull-search:focus { border-color: var(--accent); }
+    .rankfull-search::placeholder { color: var(--muted); }
+    .rankfull-table-wrap {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+    .rankfull-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .rankfull-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-bg);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .rankfull-table thead th:not(:first-child) { text-align: right; }
+    .rankfull-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .rankfull-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .rankfull-table tbody tr.highlighted {
+      background: rgba(224,24,92,0.1);
+      border-color: rgba(224,24,92,0.3);
+    }
+    .rankfull-table td {
+      padding: 9px 10px;
+      color: var(--text);
+    }
+    .rankfull-table td:not(:first-child):not(:nth-child(2)) { text-align: right; }
+    .rankfull-pos {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      width: 32px;
+    }
+    .rankfull-pos.gold   { color: #FFD700; }
+    .rankfull-pos.silver { color: #B8BEC8; }
+    .rankfull-pos.bronze { color: #CD8B5A; }
+    .rankfull-city { font-weight: 600; }
+    .rankfull-num  { color: var(--accent); font-weight: 700; }
+    .rankfull-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 0;
+    }
+    .ranking-view-all {
+      display: block;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 4px 14px 14px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 0;
+      font-family: 'Poppins', sans-serif;
+      width: calc(100% - 28px);
+    }
+    .ranking-view-all:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      background: var(--panel-bg);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 14px 22px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0;
+      z-index: 3000;
+      transform: translateY(16px);
+      opacity: 0;
+      transition: all 0.4s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     HEADER
+════════════════════════════════════════ -->
+<header>
+  <div class="logo-wrap">
+    <!-- Logo: pin de ubicación + lupa + corazón roto -->
+    <svg width="38" height="46" viewBox="0 0 44 54" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- Pin body (relleno oscuro semitransparente) -->
+      <path d="M22 52 C22 52 2 36 2 21 C2 10.5 11 2 22 2 C33 2 42 10.5 42 21 C42 36 22 52 22 52Z"
+            fill="#1E2438" stroke="#EDE9E0" stroke-width="2.2"/>
+      <!-- Anillo exterior -->
+      <circle cx="22" cy="21" r="14" stroke="#EDE9E0" stroke-width="1" opacity="0.25"/>
+      <!-- Anillo interior -->
+      <circle cx="22" cy="21" r="8.5" stroke="#EDE9E0" stroke-width="0.9" opacity="0.2"/>
+      <!-- Lupa: círculo principal -->
+      <circle cx="19.5" cy="19" r="11" stroke="#EDE9E0" stroke-width="2.5" fill="none"/>
+      <!-- Lupa: mango (sale del pin hacia abajo-derecha) -->
+      <line x1="28" y1="27.5" x2="40" y2="41" stroke="#EDE9E0" stroke-width="3" stroke-linecap="round"/>
+      <!-- Corazón roto: mitad izquierda -->
+      <path d="M19.5 25 C17 23 13 20 13 16.5 C13 14 14.8 12.5 17 12.5 C18.3 12.5 19.2 13.2 19.5 14 L19.5 25Z" fill="#E0185C"/>
+      <!-- Corazón roto: mitad derecha -->
+      <path d="M20.5 25 C23 23 27 20 27 16.5 C27 14 25.2 12.5 23 12.5 C21.7 12.5 20.8 13.2 20.5 14 L20.5 25Z" fill="#E0185C"/>
+      <!-- Grieta del corazón -->
+      <polyline points="19.5,12.8 21.5,16.5 18.5,19 21,23 19.5,25" stroke="#1E2438" stroke-width="1.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div class="logo-text"><span class="infiel">Infielmap</span><span class="mapword" style="font-size:16px;opacity:0.6">.es</span></div>
+  </div>
+
+  <div class="total-counter">
+    <span>reportes registrados</span>
+    <span id="totalCounter">—</span>
+  </div>
+</header>
+<div class="panel-backdrop" id="panelBackdrop"></div>
+<button id="panelToggleBtn" aria-label="Abrir/cerrar panel">☰</button>
+
+<!-- ════════════════════════════════════════
+     AD BANNER 728×90
+════════════════════════════════════════ -->
+<div class="ad-banner">
+  <!-- AdSense placeholder — replace with real ad code -->
+  <div class="ad-inner-728">728 × 90</div>
+</div>
+
+<!-- ── LEFT PANEL ── (fuera de app-layout para que z-index funcione correctamente) -->
+<aside class="left-panel">
+
+    <!-- 1. Live feed -->
+    <div class="live-alert">
+      <div class="live-header">
+        <div class="pulse-dot"></div>
+        <span class="live-label">Últimas infidelidades</span>
+      </div>
+      <div id="liveFeed"></div>
+      <button class="history-link" id="openHistory">Ver historial →</button>
+    </div>
+
+    <!-- 2. Notify button -->
+    <button id="notifyBtn">
+      <!-- Plus icon -->
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="8" y1="4.5" x2="8" y2="11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="4.5" y1="8" x2="11.5" y2="8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Notificar una infidelidad
+    </button>
+
+    <!-- 3. Stats grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Hoy</span>
+        <span class="stat-value" id="statToday">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Esta semana</span>
+        <span class="stat-value" id="statWeek">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label gender-sym">♂</span>
+        <span class="stat-value" id="statMale">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label gender-sym">♀</span>
+        <span class="stat-value" id="statFemale">—</span>
+      </div>
+    </div>
+
+    <!-- 4. City ranking -->
+    <div class="section-title">Ciudades más activas</div>
+    <div class="ranking-list" id="rankingList"></div>
+
+    <!-- 4b. Ver ranking completo -->
+    <button class="ranking-view-all" id="openRankFull">Ver ranking completo →</button>
+
+    <!-- 5. Legend -->
+    <div class="section-title">Leyenda</div>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="leg-dot male"></div>
+        <span>♂ Hombre</span>
+      </div>
+      <div class="legend-item">
+        <div class="leg-dot female"></div>
+        <span>♀ Mujer</span>
+      </div>
+      <div class="legend-item">
+        <div class="leg-dot lgbtq"></div>
+        <span>🌈 LGBTQ+</span>
+      </div>
+    </div>
+
+    <!-- AdSense 300×250 -->
+    <div class="ad-rect-wrap" style="border-top:1px solid var(--border)">
+      <!-- AdSense placeholder — replace with real ad code -->
+      <div class="ad-inner-300">300 × 250</div>
+    </div>
+
+  </aside>
+
+<!-- ════════════════════════════════════════
+     MAIN LAYOUT
+════════════════════════════════════════ -->
+<div class="app-layout">
+  <div id="map"></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     NOTIFY MODAL
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" id="modalClose" aria-label="Cerrar">✕</button>
+
+    <!-- Modal logo — pin + lupa + corazón roto (grande) -->
+    <div class="modal-logo">
+      <svg width="56" height="68" viewBox="0 0 44 54" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M22 52 C22 52 2 36 2 21 C2 10.5 11 2 22 2 C33 2 42 10.5 42 21 C42 36 22 52 22 52Z"
+              fill="#1E2438" stroke="#EDE9E0" stroke-width="2.2"/>
+        <circle cx="22" cy="21" r="14" stroke="#EDE9E0" stroke-width="1" opacity="0.25"/>
+        <circle cx="22" cy="21" r="8.5" stroke="#EDE9E0" stroke-width="0.9" opacity="0.2"/>
+        <circle cx="19.5" cy="19" r="11" stroke="#EDE9E0" stroke-width="2.5" fill="none"/>
+        <line x1="28" y1="27.5" x2="40" y2="41" stroke="#EDE9E0" stroke-width="3" stroke-linecap="round"/>
+        <path d="M19.5 25 C17 23 13 20 13 16.5 C13 14 14.8 12.5 17 12.5 C18.3 12.5 19.2 13.2 19.5 14 L19.5 25Z" fill="#E0185C"/>
+        <path d="M20.5 25 C23 23 27 20 27 16.5 C27 14 25.2 12.5 23 12.5 C21.7 12.5 20.8 13.2 20.5 14 L20.5 25Z" fill="#E0185C"/>
+        <polyline points="19.5,12.8 21.5,16.5 18.5,19 21,23 19.5,25" stroke="#1E2438" stroke-width="1.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="modal-title">Reportar infidelidad</div>
+
+    <form id="notifyForm" novalidate>
+
+      <div class="form-group">
+        <label class="form-label">Género del infiel</label>
+        <div class="gender-grid">
+          <button type="button" class="gender-btn" data-gender="m"><span>♂</span>Hombre hetero</button>
+          <button type="button" class="gender-btn" data-gender="f"><span>♀</span>Mujer hetero</button>
+          <button type="button" class="gender-btn" data-gender="gm"><span>🌈</span>Hombre gay</button>
+          <button type="button" class="gender-btn" data-gender="gf"><span>🌈</span>Lesbiana</button>
+        </div>
+        <div class="field-error" id="errGender">Selecciona el género</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Municipio del pecador</label>
+        <div class="ta-wrap">
+          <input type="text" class="ta-input" id="originInput" placeholder="Escribe el municipio del pecador…" autocomplete="off"/>
+          <div class="ta-dropdown" id="originDrop"></div>
+        </div>
+        <div class="field-error" id="errOrigin">Selecciona el municipio de origen</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Lugar del pecado</label>
+        <div class="ta-wrap">
+          <input type="text" class="ta-input" id="destInput" placeholder="¿Dónde se ha cometido el pecado…?" autocomplete="off"/>
+          <div class="ta-dropdown" id="destDrop"></div>
+        </div>
+        <div class="field-error" id="errDest">Selecciona el municipio de destino</div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">Confirmar reporte</button>
+
+    </form>
+
+    <!-- Mensaje de límite diario -->
+    <div id="limitMsg" style="display:none;text-align:center;padding:10px 0 4px">
+      <div style="font-size:42px;margin-bottom:16px">😏</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px">
+        Ya has hecho tu reporte de hoy
+      </div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:24px">
+        InfielMap permite un reporte por día y usuario.<br>
+        ¡Vuelve mañana si tienes más cotilleos!
+      </p>
+      <button class="submit-btn" onclick="closeModal()" style="max-width:200px;margin:0 auto;display:block">
+        Entendido
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">Infidelidad registrada.</div>
+
+<!-- ════════════════════════════════════════
+     COOKIE BANNER
+════════════════════════════════════════ -->
+<div id="cookieBanner" class="hidden" role="dialog" aria-label="Aviso de cookies">
+  <p class="cookie-text">
+    Usamos cookies propias y de terceros (Google AdSense) para mostrarte publicidad personalizada y analizar el tráfico.
+    Puedes aceptarlas o rechazarlas. Más info en nuestra
+    <a href="#" onclick="showLegal('privacidad');return false;">Política de privacidad</a>.
+  </p>
+  <div class="cookie-btns">
+    <button class="cookie-reject" id="cookieReject">Rechazar</button>
+    <button class="cookie-accept" id="cookieAccept">Aceptar</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════ -->
+<footer class="site-footer">
+  <span>© 2026 InfielMap</span>
+  <a href="#" onclick="showLegal('privacidad');return false;">Política de privacidad</a>
+  <a href="#" onclick="showLegal('aviso');return false;">Aviso legal</a>
+</footer>
+
+<!-- ════════════════════════════════════════
+     HISTORY MODAL
+════════════════════════════════════════ -->
+<div class="hist-overlay" id="histOverlay">
+  <div class="hist-box">
+    <button class="hist-close" id="histClose">✕</button>
+    <div class="hist-title">Historial de reportes</div>
+    <div class="hist-filters">
+      <input type="date" id="histDate"/>
+      <div class="ta-wrap" style="flex:1;min-width:160px">
+        <input type="text" class="ta-input" id="histCityInput" placeholder="Filtrar por municipio…" autocomplete="off" style="font-size:12px;padding:9px 11px"/>
+        <div class="ta-dropdown" id="histCityDrop"></div>
+      </div>
+      <button class="hist-search-btn" id="histSearchBtn">Buscar</button>
+    </div>
+    <div class="hist-results" id="histResults">
+      <div class="hist-empty">Selecciona un día o municipio y pulsa Buscar</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     RANKING COMPLETO MODAL
+════════════════════════════════════════ -->
+<div class="rankfull-overlay" id="rankfullOverlay">
+  <div class="rankfull-box">
+    <button class="rankfull-close" id="rankfullClose">✕</button>
+    <div class="rankfull-title">Ranking completo de municipios</div>
+    <input type="text" class="rankfull-search" id="rankfullSearch" placeholder="Busca tu municipio y ve en qué puesto está…" autocomplete="off"/>
+    <div class="rankfull-table-wrap">
+      <table class="rankfull-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Municipio</th>
+            <th>Total</th>
+            <th>Semana</th>
+            <th>Hoy</th>
+          </tr>
+        </thead>
+        <tbody id="rankfullBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     LEGAL MODAL
+════════════════════════════════════════ -->
+<div class="legal-overlay" id="legalOverlay">
+  <div class="legal-box">
+    <button class="legal-close" id="legalClose">✕</button>
+    <div id="legalContent"></div>
+  </div>
+</div>
+
+<template id="tplPrivacidad">
+  <h2>Política de privacidad</h2>
+  <p>Última actualización: junio de 2026</p>
+
+  <h3>Responsable del tratamiento</h3>
+  <p>InfielMap (infielmap.es) — contacto: <a href="mailto:contacto@infielmap.es" style="color:var(--accent)">contacto@infielmap.es</a></p>
+
+  <h3>Datos que recogemos</h3>
+  <ul>
+    <li>Ciudad de origen y destino del reporte (datos anonimizados, sin geolocalización precisa del usuario).</li>
+    <li>Datos técnicos de navegación (dirección IP, tipo de navegador, páginas visitadas) a través de cookies de Google AdSense cuando el usuario ha dado su consentimiento.</li>
+  </ul>
+
+  <h3>Finalidad y base jurídica</h3>
+  <p>Los reportes son completamente anónimos. No se recogen datos personales identificativos al enviar un reporte. El tratamiento de datos de navegación se basa en el consentimiento del usuario (art. 6.1.a RGPD) para las cookies publicitarias.</p>
+
+  <h3>Cookies</h3>
+  <p>Este sitio utiliza dos tipos de cookies:</p>
+  <ul>
+    <li><strong>Cookies técnicas propias:</strong> necesarias para el funcionamiento del servicio (gestión de sesión de reporte). No requieren consentimiento.</li>
+    <li><strong>Cookies de publicidad (Google AdSense):</strong> solo se cargan si el usuario acepta el aviso de cookies. Permiten mostrar anuncios personalizados. Puedes gestionar tus preferencias en <a href="https://adssettings.google.com" target="_blank" rel="noopener" style="color:var(--accent)">adssettings.google.com</a>.</li>
+  </ul>
+
+  <h3>Conservación</h3>
+  <p>Los reportes y el email asociado se conservan un máximo de 12 meses desde su creación, tras los cuales son eliminados.</p>
+
+  <h3>Tus derechos</h3>
+  <p>Puedes solicitar acceso, rectificación o supresión de tus datos escribiendo a <a href="mailto:contacto@infielmap.es" style="color:var(--accent)">contacto@infielmap.es</a>. También puedes reclamar ante la Agencia Española de Protección de Datos en <a href="https://www.aepd.es" target="_blank" rel="noopener" style="color:var(--accent)">www.aepd.es</a>.</p>
+</template>
+
+<template id="tplAviso">
+  <h2>Aviso legal</h2>
+
+  <h3>Titular del sitio</h3>
+  <p>InfielMap (infielmap.es) — contacto: <a href="mailto:contacto@infielmap.es" style="color:var(--accent)">contacto@infielmap.es</a></p>
+
+  <h3>Objeto y carácter del servicio</h3>
+  <p>InfielMap es una plataforma de entretenimiento y participación anónima. Los reportes publicados son contribuciones de usuarios anónimos. InfielMap no verifica la veracidad de ningún reporte y no se responsabiliza del contenido generado por los usuarios.</p>
+
+  <h3>Propiedad intelectual</h3>
+  <p>El diseño, código y marca InfielMap son propiedad de sus creadores. Queda prohibida su reproducción sin autorización expresa.</p>
+
+  <h3>Limitación de responsabilidad</h3>
+  <p>El titular no será responsable de daños derivados del uso del servicio ni de la exactitud de los datos publicados por los usuarios.</p>
+
+  <h3>Legislación aplicable</h3>
+  <p>Este aviso se rige por la legislación española. Para cualquier controversia, las partes se someten a los juzgados y tribunales de España.</p>
+</template>
+
+<!-- ════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+'use strict';
+
+// ── CONFIG ──────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://stmqmwwenctpbcnnduua.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0bXFtd3dlbmN0cGJjbm5kdXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTkyOTYsImV4cCI6MjA5NTk3NTI5Nn0.Dqdq6N-oebiPwbV2G1AwtdTGKsPSkjVnsBI8Up_lsAE';
+
+// ⚠️ CAMBIA ESTA FECHA ANTES DE SUBIR (formato YYYY-MM-DD)
+const LAUNCH_DATE = '2026-06-02';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── CITIES (por provincia) ───────────────────────────────────
+const PROVINCE_CITIES = {
+  'Álava': [
+    {name:'Vitoria-Gasteiz',lat:42.8467,lng:-2.6716},{name:'Llodio',lat:43.1390,lng:-2.9755},
+    {name:'Amurrio',lat:43.0536,lng:-3.0011},{name:'Salvatierra',lat:42.8531,lng:-2.3931},
+    {name:'Laudio',lat:43.1390,lng:-2.9755},{name:'Oyón',lat:42.5203,lng:-2.4327},
+  ],
+  'Albacete': [
+    {name:'Albacete',lat:38.9943,lng:-1.8585},{name:'Hellín',lat:38.5197,lng:-1.7017},
+    {name:'Almansa',lat:38.8687,lng:-1.0975},{name:'La Roda',lat:39.2092,lng:-2.1528},
+    {name:'Villarrobledo',lat:39.2694,lng:-2.6047},{name:'Tobarra',lat:38.5981,lng:-1.6906},
+    {name:'Caudete',lat:38.7062,lng:-0.9777},{name:'Chinchilla',lat:38.9192,lng:-1.7272},
+  ],
+  'Alicante': [
+    {name:'Alicante',lat:38.3452,lng:-0.4810},{name:'Elche',lat:38.2699,lng:-0.7126},
+    {name:'Torrevieja',lat:37.9784,lng:-0.6875},{name:'Benidorm',lat:38.5406,lng:-0.1300},
+    {name:'Orihuela',lat:38.0846,lng:-0.9441},{name:'Elda',lat:38.4748,lng:-0.7953},
+    {name:'Petrer',lat:38.4817,lng:-0.7731},{name:'Alcoy',lat:38.6978,lng:-0.4742},
+    {name:'Villena',lat:38.6345,lng:-0.8657},{name:'Dénia',lat:38.8398,lng:0.1059},
+    {name:'Calpe',lat:38.6449,lng:0.0455},{name:'Ibi',lat:38.6276,lng:-0.5691},
+    {name:'Novelda',lat:38.3838,lng:-0.7656},{name:'Crevillent',lat:38.2487,lng:-0.8107},
+    {name:'Santa Pola',lat:38.1903,lng:-0.5586},{name:'San Vicente del Raspeig',lat:38.3979,lng:-0.5261},
+    {name:'Mutxamel',lat:38.4239,lng:-0.4403},{name:'El Campello',lat:38.4280,lng:-0.3936},
+    {name:'Guardamar del Segura',lat:38.0933,lng:-0.6557},{name:'Xàbia',lat:38.7907,lng:0.1614},
+    {name:'Altea',lat:38.5988,lng:-0.0559},{name:'Pego',lat:38.8447,lng:-0.1151},
+    {name:'Aspe',lat:38.3455,lng:-0.7669},{name:'Monforte del Cid',lat:38.3767,lng:-0.7267},
+  ],
+  'Almería': [
+    {name:'Almería',lat:36.8340,lng:-2.4637},{name:'El Ejido',lat:36.7756,lng:-2.8148},
+    {name:'Roquetas de Mar',lat:36.7626,lng:-2.6148},{name:'Níjar',lat:36.9679,lng:-2.2030},
+    {name:'Vícar',lat:36.8007,lng:-2.6444},{name:'Adra',lat:36.7487,lng:-3.0208},
+    {name:'Huércal-Overa',lat:37.3890,lng:-1.9427},{name:'Vera',lat:37.2492,lng:-1.8699},
+    {name:'Cuevas del Almanzora',lat:37.2961,lng:-1.7375},{name:'Berja',lat:36.8471,lng:-2.9500},
+    {name:'Pulpí',lat:37.3924,lng:-1.7394},{name:'Huércal de Almería',lat:36.8772,lng:-2.4261},
+    {name:'Carboneras',lat:37.0010,lng:-1.8939},{name:'Mojácar',lat:37.1431,lng:-1.8499},
+    {name:'Garrucha',lat:37.1823,lng:-1.8247},{name:'Vélez-Blanco',lat:37.6884,lng:-2.0827},
+  ],
+  'Asturias': [
+    {name:'Oviedo',lat:43.3614,lng:-5.8593},{name:'Gijón',lat:43.5453,lng:-5.6629},
+    {name:'Avilés',lat:43.5570,lng:-5.9249},{name:'Siero',lat:43.3876,lng:-5.6618},
+    {name:'Langreo',lat:43.2993,lng:-5.6782},{name:'Mieres',lat:43.2527,lng:-5.7773},
+    {name:'Castrillón',lat:43.5596,lng:-5.9881},{name:'Carreño',lat:43.5358,lng:-5.8237},
+    {name:'Llanera',lat:43.4195,lng:-5.8455},{name:'Corvera de Asturias',lat:43.5416,lng:-5.8916},
+    {name:'Cangas de Onís',lat:43.3507,lng:-5.1293},{name:'Cangas del Narcea',lat:43.1762,lng:-6.5411},
+    {name:'Tineo',lat:43.3314,lng:-6.4148},{name:'Luarca',lat:43.5419,lng:-6.5353},
+    {name:'Llanes',lat:43.4197,lng:-4.7593},{name:'Ribadesella',lat:43.4625,lng:-5.0590},
+    {name:'Navia',lat:43.5481,lng:-6.7261},{name:'Villaviciosa',lat:43.4846,lng:-5.4358},
+  ],
+  'Ávila': [
+    {name:'Ávila',lat:40.6567,lng:-4.6816},{name:'Arévalo',lat:41.0668,lng:-4.7209},
+    {name:'Arenas de San Pedro',lat:40.2120,lng:-5.0904},{name:'Sotillo de la Adrada',lat:40.3177,lng:-4.6462},
+    {name:'Piedrahíta',lat:40.4620,lng:-5.3226},
+  ],
+  'Badajoz': [
+    {name:'Badajoz',lat:38.8794,lng:-6.9706},{name:'Mérida',lat:38.9121,lng:-6.3494},
+    {name:'Don Benito',lat:38.9568,lng:-5.8611},{name:'Almendralejo',lat:38.6854,lng:-6.4068},
+    {name:'Villanueva de la Serena',lat:38.9818,lng:-5.7957},{name:'Zafra',lat:38.4220,lng:-6.4163},
+    {name:'Montijo',lat:38.9082,lng:-6.6124},{name:'Olivenza',lat:38.6839,lng:-7.1013},
+    {name:'Azuaga',lat:38.2588,lng:-5.6681},{name:'Castuera',lat:38.7191,lng:-5.5413},
+    {name:'Jerez de los Caballeros',lat:38.3249,lng:-6.7731},{name:'Llerena',lat:38.2372,lng:-6.0143},
+    {name:'Villafranca de los Barros',lat:38.5673,lng:-6.3254},{name:'Guareña',lat:38.8570,lng:-6.1007},
+  ],
+  'Baleares': [
+    {name:'Palma',lat:39.5696,lng:2.6502},{name:'Ibiza',lat:38.9067,lng:1.4327},
+    {name:'Mahón',lat:39.8894,lng:4.2630},{name:'Manacor',lat:39.5688,lng:3.2097},
+    {name:'Calvià',lat:39.5616,lng:2.5131},{name:'Llucmajor',lat:39.4870,lng:2.8884},
+    {name:'Inca',lat:39.7198,lng:2.9138},{name:'Marratxí',lat:39.6320,lng:2.7289},
+    {name:'Felanitx',lat:39.4682,lng:3.1487},{name:'Ciutadella',lat:40.0024,lng:3.8293},
+    {name:'Sant Antoni de Portmany',lat:38.9798,lng:1.3106},{name:'Sóller',lat:39.7665,lng:2.7146},
+    {name:'Pollença',lat:39.8778,lng:3.0135},{name:'Alcúdia',lat:39.8529,lng:3.1208},
+    {name:'Andratx',lat:39.5763,lng:2.4230},{name:'Sa Pobla',lat:39.7672,lng:3.0197},
+    {name:'Santanyí',lat:39.3563,lng:3.1265},{name:'Artà',lat:39.6960,lng:3.3475},
+  ],
+  'Barcelona': [
+    {name:'Barcelona',lat:41.3851,lng:2.1734},{name:'Hospitalet de Llobregat',lat:41.3598,lng:2.1076},
+    {name:'Badalona',lat:41.4500,lng:2.2472},{name:'Terrassa',lat:41.5628,lng:2.0089},
+    {name:'Sabadell',lat:41.5433,lng:2.1091},{name:'Mataró',lat:41.5367,lng:2.4452},
+    {name:'Sant Cugat del Vallès',lat:41.4729,lng:2.0831},{name:'Cornellà de Llobregat',lat:41.3548,lng:2.0734},
+    {name:'El Prat de Llobregat',lat:41.3265,lng:2.0942},{name:'Rubí',lat:41.4921,lng:2.0319},
+    {name:'Granollers',lat:41.6079,lng:2.2892},{name:'Castelldefels',lat:41.2782,lng:1.9768},
+    {name:'Mollet del Vallès',lat:41.5388,lng:2.2133},{name:'Cerdanyola del Vallès',lat:41.4905,lng:2.1433},
+    {name:'Vilanova i la Geltrú',lat:41.2229,lng:1.7250},{name:'Viladecans',lat:41.3159,lng:2.0352},
+    {name:'Gavà',lat:41.3044,lng:1.9980},{name:'Esplugues de Llobregat',lat:41.3727,lng:2.0883},
+    {name:'Ripollet',lat:41.5009,lng:2.1575},{name:'Manresa',lat:41.7288,lng:1.8282},
+    {name:'Igualada',lat:41.5793,lng:1.6193},{name:'Vic',lat:41.9302,lng:2.2546},
+    {name:'Berga',lat:42.1010,lng:1.8447},{name:'Martorell',lat:41.4742,lng:1.9290},
+    {name:'Sitges',lat:41.2357,lng:1.8053},{name:'Olesa de Montserrat',lat:41.5311,lng:1.8980},
+    {name:'Santa Coloma de Gramenet',lat:41.4515,lng:2.2077},{name:'Sant Boi de Llobregat',lat:41.3441,lng:2.0358},
+    {name:'Molins de Rei',lat:41.4146,lng:2.0095},{name:'Sant Joan Despí',lat:41.3736,lng:2.0519},
+    {name:'Premià de Mar',lat:41.4983,lng:2.3608},{name:'Montgat',lat:41.4738,lng:2.2752},
+    {name:'Barberà del Vallès',lat:41.5188,lng:2.1251},{name:'Abrera',lat:41.5221,lng:1.9064},
+    {name:'Calella',lat:41.6141,lng:2.6560},{name:'Pineda de Mar',lat:41.6236,lng:2.6862},
+  ],
+  'Burgos': [
+    {name:'Burgos',lat:42.3440,lng:-3.6969},{name:'Miranda de Ebro',lat:42.6897,lng:-2.9459},
+    {name:'Aranda de Duero',lat:41.6702,lng:-3.6894},{name:'Briviesca',lat:42.5432,lng:-3.3148},
+    {name:'Medina de Pomar',lat:42.9344,lng:-3.4858},
+  ],
+  'Cáceres': [
+    {name:'Cáceres',lat:39.4752,lng:-6.3723},{name:'Plasencia',lat:40.0305,lng:-6.0903},
+    {name:'Navalmoral de la Mata',lat:39.9023,lng:-5.5434},{name:'Miajadas',lat:39.1499,lng:-5.9044},
+    {name:'Trujillo',lat:39.4627,lng:-5.8832},{name:'Coria',lat:39.9847,lng:-6.5338},
+    {name:'Moraleja',lat:40.0726,lng:-6.6561},{name:'Jaraíz de la Vera',lat:40.0594,lng:-5.7522},
+    {name:'Hervás',lat:40.2682,lng:-5.8636},
+  ],
+  'Cádiz': [
+    {name:'Cádiz',lat:36.5271,lng:-6.2886},{name:'Jerez de la Frontera',lat:36.6863,lng:-6.1362},
+    {name:'Algeciras',lat:36.1304,lng:-5.4601},{name:'San Fernando',lat:36.4778,lng:-6.1987},
+    {name:'El Puerto de Santa María',lat:36.5938,lng:-6.2284},{name:'La Línea de la Concepción',lat:36.1673,lng:-5.3495},
+    {name:'Chiclana de la Frontera',lat:36.4191,lng:-6.1465},{name:'Sanlúcar de Barrameda',lat:36.7781,lng:-6.3534},
+    {name:'Rota',lat:36.6252,lng:-6.3589},{name:'Puerto Real',lat:36.5243,lng:-6.1902},
+    {name:'Arcos de la Frontera',lat:36.7481,lng:-5.8121},{name:'Barbate',lat:36.1948,lng:-5.9247},
+    {name:'Tarifa',lat:36.0143,lng:-5.6046},{name:'Los Barrios',lat:36.1810,lng:-5.5006},
+    {name:'Conil de la Frontera',lat:36.2784,lng:-6.0844},{name:'Vejer de la Frontera',lat:36.2528,lng:-5.9723},
+    {name:'Medina-Sidonia',lat:36.4570,lng:-5.9269},{name:'Olvera',lat:36.9356,lng:-5.2614},
+    {name:'Ubrique',lat:36.6855,lng:-5.4513},
+  ],
+  'Cantabria': [
+    {name:'Santander',lat:43.4623,lng:-3.8099},{name:'Torrelavega',lat:43.3524,lng:-4.0503},
+    {name:'Castro-Urdiales',lat:43.3836,lng:-3.2210},{name:'Camargo',lat:43.4025,lng:-3.8617},
+    {name:'El Astillero',lat:43.4003,lng:-3.8187},{name:'Piélagos',lat:43.3824,lng:-3.9524},
+    {name:'Laredo',lat:43.4133,lng:-3.4194},{name:'Santoña',lat:43.4384,lng:-3.4574},
+    {name:'Reinosa',lat:43.0019,lng:-4.1368},{name:'Colindres',lat:43.3988,lng:-3.4501},
+  ],
+  'Castellón': [
+    {name:'Castellón de la Plana',lat:39.9864,lng:-0.0513},{name:'Vila-real',lat:39.9337,lng:-0.1026},
+    {name:'Burriana',lat:39.8884,lng:-0.0876},{name:'Vinaròs',lat:40.4699,lng:0.4740},
+    {name:'Benicàssim',lat:40.0581,lng:0.0729},{name:'Almassora',lat:39.9507,lng:-0.0662},
+    {name:'Onda',lat:39.9664,lng:-0.2644},{name:'Vall d\'Uixó',lat:39.8250,lng:-0.2376},
+    {name:'Nules',lat:39.8588,lng:-0.1499},{name:'Segorbe',lat:39.8494,lng:-0.4893},
+    {name:'Peñíscola',lat:40.3530,lng:0.3979},{name:'Morella',lat:40.6197,lng:-0.0943},
+    {name:'Oropesa del Mar',lat:40.0965,lng:0.1295},
+  ],
+  'Ciudad Real': [
+    {name:'Ciudad Real',lat:38.9848,lng:-3.9274},{name:'Puertollano',lat:38.6870,lng:-4.1075},
+    {name:'Tomelloso',lat:39.1568,lng:-3.0232},{name:'Alcázar de San Juan',lat:39.3943,lng:-3.2080},
+    {name:'Valdepeñas',lat:38.7595,lng:-3.3842},{name:'Manzanares',lat:38.9991,lng:-3.3708},
+    {name:'Daimiel',lat:38.9200,lng:-3.6095},{name:'Miguelturra',lat:38.9574,lng:-3.8934},
+    {name:'Campo de Criptana',lat:39.4079,lng:-3.1226},{name:'Almodovar del Campo',lat:38.7086,lng:-4.1661},
+    {name:'Villanueva de los Infantes',lat:38.7267,lng:-2.9987},{name:'Socuéllamos',lat:39.2783,lng:-2.7953},
+  ],
+  'Córdoba': [
+    {name:'Córdoba',lat:37.8882,lng:-4.7794},{name:'Lucena',lat:37.4089,lng:-4.4854},
+    {name:'Pozoblanco',lat:38.3760,lng:-4.8483},{name:'Puente Genil',lat:37.3909,lng:-4.7613},
+    {name:'Montilla',lat:37.5866,lng:-4.6375},{name:'Priego de Córdoba',lat:37.4382,lng:-4.1967},
+    {name:'Cabra',lat:37.4702,lng:-4.4427},{name:'Baena',lat:37.6178,lng:-4.3219},
+    {name:'Palma del Río',lat:37.7013,lng:-5.2836},{name:'Peñarroya-Pueblonuevo',lat:38.3000,lng:-5.2667},
+    {name:'Aguilar de la Frontera',lat:37.5122,lng:-4.6609},{name:'La Carlota',lat:37.6665,lng:-4.9289},
+    {name:'Rute',lat:37.3253,lng:-4.3686},{name:'Belmez',lat:38.2739,lng:-5.1992},
+  ],
+  'A Coruña': [
+    {name:'A Coruña',lat:43.3623,lng:-8.4115},{name:'Santiago de Compostela',lat:42.8782,lng:-8.5448},
+    {name:'Ferrol',lat:43.4848,lng:-8.2339},{name:'Oleiros',lat:43.3359,lng:-8.3143},
+    {name:'Cambre',lat:43.2865,lng:-8.3470},{name:'Arteixo',lat:43.3034,lng:-8.5048},
+    {name:'Culleredo',lat:43.2836,lng:-8.4065},{name:'Narón',lat:43.5232,lng:-8.1892},
+    {name:'Ribeira',lat:42.5558,lng:-8.9938},{name:'Carballo',lat:43.2131,lng:-8.6935},
+    {name:'Boiro',lat:42.6449,lng:-8.8870},{name:'Betanzos',lat:43.2780,lng:-8.2115},
+    {name:'Noia',lat:42.7916,lng:-8.8906},{name:'Arzúa',lat:42.9262,lng:-8.1614},
+    {name:'Padrón',lat:42.7339,lng:-8.6650},{name:'Ordes',lat:43.0757,lng:-8.3981},
+    {name:'Mugardos',lat:43.4655,lng:-8.2520},{name:'Cedeira',lat:43.6596,lng:-8.0560},
+    {name:'Corcubión',lat:42.9404,lng:-9.1904},
+  ],
+  'Cuenca': [
+    {name:'Cuenca',lat:40.0704,lng:-2.1374},{name:'Tarancón',lat:40.0145,lng:-3.0069},
+    {name:'San Clemente',lat:39.4042,lng:-2.4295},{name:'Motilla del Palancar',lat:39.5694,lng:-1.8978},
+    {name:'Quintanar del Rey',lat:39.3490,lng:-1.9278},{name:'Priego',lat:40.4451,lng:-2.3157},
+  ],
+  'Girona': [
+    {name:'Girona',lat:41.9794,lng:2.8214},{name:'Lloret de Mar',lat:41.6982,lng:2.8547},
+    {name:'Figueres',lat:42.2671,lng:2.9618},{name:'Blanes',lat:41.6736,lng:2.7903},
+    {name:'Salt',lat:41.9829,lng:2.7906},{name:'Olot',lat:42.1821,lng:2.4886},
+    {name:'Platja d\'Aro',lat:41.8153,lng:3.0665},{name:'Roses',lat:42.2678,lng:3.1747},
+    {name:'Palamós',lat:41.8435,lng:3.1293},{name:'Palafrugell',lat:41.9182,lng:3.1627},
+    {name:'Sant Feliu de Guíxols',lat:41.7828,lng:3.0340},{name:'Ripoll',lat:42.2013,lng:2.1929},
+    {name:'Banyoles',lat:42.1197,lng:2.7652},{name:'Torroella de Montgrí',lat:42.0449,lng:3.1280},
+    {name:'La Bisbal d\'Empordà',lat:41.9547,lng:3.0375},{name:'Tossa de Mar',lat:41.7219,lng:2.9335},
+    {name:'Cadaqués',lat:42.2884,lng:3.2808},{name:'Pals',lat:41.9788,lng:3.1494},
+  ],
+  'Granada': [
+    {name:'Granada',lat:37.1773,lng:-3.5986},{name:'Motril',lat:36.7456,lng:-3.5186},
+    {name:'Maracena',lat:37.2107,lng:-3.6308},{name:'Armilla',lat:37.1524,lng:-3.6244},
+    {name:'Almuñécar',lat:36.7368,lng:-3.6921},{name:'Loja',lat:37.1680,lng:-4.1507},
+    {name:'Guadix',lat:37.2997,lng:-3.1370},{name:'Baza',lat:37.4935,lng:-2.7709},
+    {name:'Huétor Tájar',lat:37.1985,lng:-4.0435},{name:'Albolote',lat:37.2484,lng:-3.6415},
+    {name:'Pinos Puente',lat:37.2592,lng:-3.7471},{name:'La Zubia',lat:37.1260,lng:-3.5764},
+    {name:'Atarfe',lat:37.2169,lng:-3.6851},{name:'Iznalloz',lat:37.3914,lng:-3.5336},
+    {name:'Íllora',lat:37.2800,lng:-3.8806},{name:'Alhama de Granada',lat:37.0026,lng:-4.0005},
+    {name:'Montefrío',lat:37.3227,lng:-4.0068},{name:'Santa Fé',lat:37.1883,lng:-3.7258},
+  ],
+  'Guadalajara': [
+    {name:'Guadalajara',lat:40.6321,lng:-3.1664},{name:'Azuqueca de Henares',lat:40.5614,lng:-3.2671},
+    {name:'Alovera',lat:40.5823,lng:-3.2384},{name:'Cabanillas del Campo',lat:40.5982,lng:-3.2219},
+    {name:'Sigüenza',lat:41.0677,lng:-2.6388},{name:'Molina de Aragón',lat:40.8449,lng:-1.8881},
+    {name:'Brihuega',lat:40.7578,lng:-2.8705},
+  ],
+  'Guipúzcoa': [
+    {name:'San Sebastián',lat:43.3183,lng:-1.9812},{name:'Irún',lat:43.3391,lng:-1.7889},
+    {name:'Errenteria',lat:43.3114,lng:-1.9005},{name:'Eibar',lat:43.1850,lng:-2.4720},
+    {name:'Zarautz',lat:43.2838,lng:-2.1710},{name:'Hernani',lat:43.2671,lng:-1.9778},
+    {name:'Mondragón',lat:43.0633,lng:-2.4933},{name:'Oñati',lat:43.0330,lng:-2.4178},
+    {name:'Zumarraga',lat:43.0833,lng:-2.3101},{name:'Bergara',lat:43.1197,lng:-2.4127},
+    {name:'Tolosa',lat:43.1368,lng:-2.0787},{name:'Beasain',lat:43.0486,lng:-2.1942},
+    {name:'Azpeitia',lat:43.1816,lng:-2.2665},{name:'Pasaia',lat:43.3241,lng:-1.9230},
+    {name:'Hondarribia',lat:43.3691,lng:-1.7964},{name:'Zumaia',lat:43.2993,lng:-2.2534},
+    {name:'Ordizia',lat:43.0566,lng:-2.1775},{name:'Legazpi',lat:43.0540,lng:-2.3327},
+  ],
+  'Huelva': [
+    {name:'Huelva',lat:37.2614,lng:-6.9447},{name:'Lepe',lat:37.2538,lng:-7.2038},
+    {name:'Almonte',lat:37.2691,lng:-6.5200},{name:'Moguer',lat:37.2743,lng:-6.8346},
+    {name:'Isla Cristina',lat:37.2032,lng:-7.3234},{name:'Ayamonte',lat:37.2141,lng:-7.4036},
+    {name:'Cartaya',lat:37.2745,lng:-7.1508},{name:'Nerva',lat:37.6966,lng:-6.5566},
+    {name:'Valverde del Camino',lat:37.5762,lng:-6.7530},{name:'Aracena',lat:37.8876,lng:-6.5533},
+    {name:'La Palma del Condado',lat:37.3898,lng:-6.5539},{name:'Bollullos Par del Condado',lat:37.3378,lng:-6.5270},
+    {name:'Punta Umbría',lat:37.1774,lng:-6.9658},{name:'Palos de la Frontera',lat:37.2292,lng:-6.8966},
+  ],
+  'Huesca': [
+    {name:'Huesca',lat:42.1401,lng:-0.4082},{name:'Monzón',lat:41.9157,lng:0.1913},
+    {name:'Barbastro',lat:42.0385,lng:0.1268},{name:'Sabiñánigo',lat:42.5193,lng:-0.3681},
+    {name:'Fraga',lat:41.5248,lng:0.3476},{name:'Jaca',lat:42.5699,lng:-0.5499},
+    {name:'Binéfar',lat:41.8538,lng:0.2959},{name:'Graus',lat:42.1907,lng:0.3399},
+    {name:'Aínsa',lat:42.4183,lng:0.1381},
+  ],
+  'Jaén': [
+    {name:'Jaén',lat:37.7796,lng:-3.7849},{name:'Úbeda',lat:38.0134,lng:-3.3759},
+    {name:'Linares',lat:38.0898,lng:-3.6366},{name:'Andújar',lat:38.0413,lng:-4.0536},
+    {name:'Martos',lat:37.7234,lng:-3.9710},{name:'Baeza',lat:37.9934,lng:-3.4693},
+    {name:'Alcalá la Real',lat:37.4605,lng:-3.9238},{name:'La Carolina',lat:38.2736,lng:-3.6122},
+    {name:'Mancha Real',lat:37.7964,lng:-3.6167},{name:'Cazorla',lat:37.9153,lng:-3.0038},
+    {name:'Villacarrillo',lat:38.1171,lng:-3.0860},{name:'Torredonjimeno',lat:37.7660,lng:-3.9582},
+    {name:'Porcuna',lat:37.8738,lng:-4.1884},{name:'Mengíbar',lat:37.9623,lng:-3.7820},
+    {name:'Jodar',lat:37.8322,lng:-3.3477},
+  ],
+  'La Rioja': [
+    {name:'Logroño',lat:42.4627,lng:-2.4449},{name:'Calahorra',lat:42.3031,lng:-1.9648},
+    {name:'Arnedo',lat:42.2188,lng:-2.1001},{name:'Haro',lat:42.5772,lng:-2.8497},
+    {name:'Alfaro',lat:42.1762,lng:-1.7468},{name:'Nájera',lat:42.4175,lng:-2.7302},
+    {name:'Santo Domingo de la Calzada',lat:42.4400,lng:-2.9500},{name:'Ezcaray',lat:42.3271,lng:-3.0113},
+  ],
+  'Las Palmas': [
+    {name:'Las Palmas de Gran Canaria',lat:28.1235,lng:-15.4366},{name:'Telde',lat:27.9942,lng:-15.4167},
+    {name:'Arucas',lat:28.1187,lng:-15.5228},{name:'Santa Lucía de Tirajana',lat:27.9136,lng:-15.5432},
+    {name:'San Bartolomé de Tirajana',lat:27.9201,lng:-15.5660},{name:'Mogán',lat:27.8943,lng:-15.7220},
+    {name:'Arrecife',lat:28.9636,lng:-13.5476},{name:'Puerto del Rosario',lat:28.5003,lng:-13.8630},
+    {name:'Costa Teguise',lat:29.0054,lng:-13.4972},{name:'Playa Blanca',lat:28.8627,lng:-13.8257},
+    {name:'Corralejo',lat:28.7304,lng:-13.8684},{name:'Antigua',lat:28.4212,lng:-14.0148},
+    {name:'Ingenio',lat:27.9186,lng:-15.4312},{name:'Agüimes',lat:27.9027,lng:-15.4481},
+    {name:'Gáldar',lat:28.1440,lng:-15.6527},{name:'Teror',lat:28.0593,lng:-15.5501},
+    {name:'Maspalomas',lat:27.7608,lng:-15.5867},{name:'Puerto Rico',lat:27.7894,lng:-15.7127},
+  ],
+  'León': [
+    {name:'León',lat:42.5987,lng:-5.5671},{name:'Ponferrada',lat:42.5462,lng:-6.5984},
+    {name:'San Andrés del Rabanedo',lat:42.6096,lng:-5.6174},{name:'Villaquilambre',lat:42.6416,lng:-5.5459},
+    {name:'Astorga',lat:42.4575,lng:-6.0548},{name:'La Bañeza',lat:42.2987,lng:-5.9027},
+    {name:'Sahagún',lat:42.3705,lng:-5.0289},{name:'Bembibre',lat:42.6176,lng:-6.4195},
+    {name:'Cistierna',lat:42.8013,lng:-5.1201},{name:'Villafranca del Bierzo',lat:42.6078,lng:-6.8088},
+  ],
+  'Lleida': [
+    {name:'Lleida',lat:41.6148,lng:0.6262},{name:'Mollerussa',lat:41.6318,lng:0.8991},
+    {name:'Balaguer',lat:41.7904,lng:0.8064},{name:'Tàrrega',lat:41.6488,lng:1.1408},
+    {name:'La Seu d\'Urgell',lat:42.3591,lng:1.4560},{name:'Cervera',lat:41.6699,lng:1.2744},
+    {name:'Tremp',lat:42.1691,lng:0.8975},{name:'Sort',lat:42.4133,lng:1.1310},
+    {name:'Artesa de Segre',lat:41.8960,lng:1.0399},
+  ],
+  'Lugo': [
+    {name:'Lugo',lat:43.0097,lng:-7.5567},{name:'Monforte de Lemos',lat:42.5230,lng:-7.5148},
+    {name:'Viveiro',lat:43.6620,lng:-7.5946},{name:'Sarria',lat:42.7765,lng:-7.4130},
+    {name:'Burela',lat:43.6607,lng:-7.3594},{name:'Vilalba',lat:43.2972,lng:-7.6826},
+    {name:'Foz',lat:43.5685,lng:-7.2538},{name:'Ribadeo',lat:43.5370,lng:-7.0400},
+    {name:'Chantada',lat:42.6077,lng:-7.7749},{name:'Guitiriz',lat:43.1796,lng:-7.8943},
+  ],
+  'Madrid': [
+    {name:'Madrid',lat:40.4168,lng:-3.7038},{name:'Móstoles',lat:40.3226,lng:-3.8647},
+    {name:'Alcalá de Henares',lat:40.4818,lng:-3.3649},{name:'Fuenlabrada',lat:40.2842,lng:-3.7949},
+    {name:'Leganés',lat:40.3283,lng:-3.7649},{name:'Getafe',lat:40.3057,lng:-3.7333},
+    {name:'Alcorcón',lat:40.3461,lng:-3.8233},{name:'Torrejón de Ardoz',lat:40.4594,lng:-3.4741},
+    {name:'Parla',lat:40.2364,lng:-3.7689},{name:'Alcobendas',lat:40.5462,lng:-3.6412},
+    {name:'Las Rozas de Madrid',lat:40.4929,lng:-3.8739},{name:'Rivas-Vaciamadrid',lat:40.3575,lng:-3.5305},
+    {name:'Pozuelo de Alarcón',lat:40.4349,lng:-3.8142},{name:'Majadahonda',lat:40.4727,lng:-3.8727},
+    {name:'Coslada',lat:40.4257,lng:-3.5680},{name:'Collado Villalba',lat:40.6392,lng:-4.0001},
+    {name:'Aranjuez',lat:40.0364,lng:-3.6030},{name:'Valdemoro',lat:40.1906,lng:-3.6760},
+    {name:'Torrelodones',lat:40.5766,lng:-3.9316},{name:'Pinto',lat:40.2490,lng:-3.6934},
+    {name:'Arganda del Rey',lat:40.3016,lng:-3.4354},{name:'Boadilla del Monte',lat:40.4069,lng:-3.8768},
+    {name:'San Sebastián de los Reyes',lat:40.5494,lng:-3.6263},{name:'Galapagar',lat:40.5779,lng:-4.0054},
+    {name:'Tres Cantos',lat:40.5960,lng:-3.7076},{name:'Colmenar Viejo',lat:40.6588,lng:-3.7658},
+    {name:'Navalcarnero',lat:40.2863,lng:-4.0130},{name:'Arroyomolinos',lat:40.3810,lng:-4.0052},
+    {name:'Algete',lat:40.5943,lng:-3.4998},{name:'San Fernando de Henares',lat:40.4258,lng:-3.5295},
+    {name:'Mejorada del Campo',lat:40.3916,lng:-3.4792},{name:'Villanueva de la Cañada',lat:40.4526,lng:-3.9895},
+    {name:'El Escorial',lat:40.5866,lng:-4.1268},{name:'Brunete',lat:40.3942,lng:-4.0126},
+    {name:'Humanes de Madrid',lat:40.2436,lng:-3.8138},{name:'Velilla de San Antonio',lat:40.3816,lng:-3.4917},
+    {name:'Chinchón',lat:40.1428,lng:-3.4280},{name:'Meco',lat:40.5542,lng:-3.3432},
+    {name:'Torrejón de la Calzada',lat:40.2019,lng:-3.7611},
+  ],
+  'Málaga': [
+    {name:'Málaga',lat:36.7213,lng:-4.4214},{name:'Marbella',lat:36.5101,lng:-4.8826},
+    {name:'Fuengirola',lat:36.5396,lng:-4.6250},{name:'Vélez-Málaga',lat:36.7808,lng:-4.0996},
+    {name:'Torremolinos',lat:36.6222,lng:-4.4998},{name:'Benalmádena',lat:36.5999,lng:-4.5164},
+    {name:'Estepona',lat:36.4269,lng:-5.1461},{name:'Alhaurín de la Torre',lat:36.6660,lng:-4.5561},
+    {name:'Mijas',lat:36.5959,lng:-4.6384},{name:'Rincón de la Victoria',lat:36.7180,lng:-4.2816},
+    {name:'Nerja',lat:36.7462,lng:-3.8765},{name:'Antequera',lat:37.0168,lng:-4.5612},
+    {name:'Coín',lat:36.6593,lng:-4.7640},{name:'Ronda',lat:36.7469,lng:-5.1617},
+    {name:'Alhaurín el Grande',lat:36.6408,lng:-4.6970},{name:'Torre del Mar',lat:36.7388,lng:-4.1001},
+    {name:'Manilva',lat:36.3851,lng:-5.2340},{name:'Campillos',lat:37.0566,lng:-4.8585},
+    {name:'Cártama',lat:36.7117,lng:-4.6352},{name:'Torrox',lat:36.7581,lng:-3.9504},
+    {name:'Frigiliana',lat:36.7877,lng:-3.8982},{name:'Casares',lat:36.4415,lng:-5.2703},
+    {name:'Archidona',lat:37.0988,lng:-4.3929},{name:'Álora',lat:36.8171,lng:-4.7012},
+    {name:'Cuevas de San Marcos',lat:37.2656,lng:-4.4046},
+  ],
+  'Murcia': [
+    {name:'Murcia',lat:37.9922,lng:-1.1307},{name:'Cartagena',lat:37.6048,lng:-0.9863},
+    {name:'Lorca',lat:37.6701,lng:-1.7003},{name:'Molina de Segura',lat:38.0582,lng:-1.2104},
+    {name:'Alcantarilla',lat:37.9706,lng:-1.2257},{name:'Yecla',lat:38.6118,lng:-1.1155},
+    {name:'Águilas',lat:37.4082,lng:-1.5828},{name:'San Javier',lat:37.8087,lng:-0.8364},
+    {name:'Mazarrón',lat:37.5987,lng:-1.3132},{name:'Torre-Pacheco',lat:37.7434,lng:-0.9548},
+    {name:'Totana',lat:37.7687,lng:-1.5022},{name:'Cieza',lat:38.2381,lng:-1.4196},
+    {name:'Jumilla',lat:38.4744,lng:-1.3268},{name:'Caravaca de la Cruz',lat:38.1072,lng:-1.8633},
+    {name:'Calasparra',lat:38.2331,lng:-1.6963},{name:'Archena',lat:38.1131,lng:-1.3045},
+    {name:'Santomera',lat:38.0612,lng:-1.0479},{name:'Los Alcázares',lat:37.7462,lng:-0.8685},
+    {name:'San Pedro del Pinatar',lat:37.8310,lng:-0.7959},{name:'Cehegín',lat:38.0893,lng:-1.7992},
+    {name:'Mula',lat:38.0414,lng:-1.4918},{name:'Bullas',lat:38.0465,lng:-1.6670},
+    {name:'Fuente Álamo',lat:37.7207,lng:-1.1685},
+  ],
+  'Navarra': [
+    {name:'Pamplona',lat:42.8169,lng:-1.6432},{name:'Tudela',lat:42.0618,lng:-1.6060},
+    {name:'Barañáin',lat:42.8059,lng:-1.6679},{name:'Burlada',lat:42.8282,lng:-1.6233},
+    {name:'Ansoáin',lat:42.8373,lng:-1.6390},{name:'Estella',lat:42.6714,lng:-2.0325},
+    {name:'Tafalla',lat:42.5233,lng:-1.6742},{name:'Sarriguren',lat:42.8342,lng:-1.5884},
+    {name:'Noáin',lat:42.7559,lng:-1.6373},{name:'Zizur Mayor',lat:42.7788,lng:-1.6919},
+    {name:'Villava',lat:42.8355,lng:-1.6276},{name:'Berriozar',lat:42.8454,lng:-1.6478},
+    {name:'Sangüesa',lat:42.5697,lng:-1.2820},{name:'Alsasua',lat:42.9077,lng:-2.1716},
+    {name:'Elizondo',lat:43.1565,lng:-1.5152},{name:'Aoiz',lat:42.7832,lng:-1.3756},
+  ],
+  'Ourense': [
+    {name:'Ourense',lat:42.3359,lng:-7.8639},{name:'Verín',lat:41.9396,lng:-7.4371},
+    {name:'O Carballiño',lat:42.4318,lng:-8.0830},{name:'Xinzo de Limia',lat:42.0614,lng:-7.7232},
+    {name:'A Rúa',lat:42.3915,lng:-6.9768},{name:'O Barco de Valdeorras',lat:42.4136,lng:-6.9900},
+    {name:'Ribadavia',lat:42.2912,lng:-8.1425},{name:'Celanova',lat:42.1546,lng:-7.9576},
+  ],
+  'Palencia': [
+    {name:'Palencia',lat:42.0097,lng:-4.5288},{name:'Guardo',lat:42.7818,lng:-4.8360},
+    {name:'Aguilar de Campoo',lat:42.7889,lng:-4.2578},{name:'Venta de Baños',lat:41.9225,lng:-4.4889},
+    {name:'Paredes de Nava',lat:42.1520,lng:-4.6868},
+  ],
+  'Pontevedra': [
+    {name:'Vigo',lat:42.2406,lng:-8.7207},{name:'Pontevedra',lat:42.4342,lng:-8.6481},
+    {name:'Vilagarcía de Arousa',lat:42.5945,lng:-8.7697},{name:'Redondela',lat:42.2884,lng:-8.6088},
+    {name:'Cangas',lat:42.2668,lng:-8.7846},{name:'O Grove',lat:42.4966,lng:-8.8718},
+    {name:'Sanxenxo',lat:42.4104,lng:-8.8118},{name:'Lalín',lat:42.6579,lng:-8.1112},
+    {name:'Moaña',lat:42.2879,lng:-8.7293},{name:'A Guarda',lat:41.9042,lng:-8.8742},
+    {name:'Caldas de Reis',lat:42.6049,lng:-8.6407},{name:'Nigrán',lat:42.1491,lng:-8.8012},
+    {name:'Gondomar',lat:42.1142,lng:-8.7634},{name:'Marín',lat:42.3917,lng:-8.6975},
+    {name:'Porriño',lat:42.1580,lng:-8.6198},{name:'Baiona',lat:42.1200,lng:-8.8543},
+    {name:'Bueu',lat:42.3242,lng:-8.7907},{name:'Cambados',lat:42.5175,lng:-8.8118},
+    {name:'Tui',lat:42.0461,lng:-8.6463},{name:'A Estrada',lat:42.6905,lng:-8.4919},
+  ],
+  'Salamanca': [
+    {name:'Salamanca',lat:40.9701,lng:-5.6635},{name:'Béjar',lat:40.3893,lng:-5.7630},
+    {name:'Ciudad Rodrigo',lat:40.5985,lng:-6.5325},{name:'Santa Marta de Tormes',lat:40.9391,lng:-5.6268},
+    {name:'Peñaranda de Bracamonte',lat:41.1029,lng:-5.2162},{name:'Guijuelo',lat:40.5621,lng:-5.6745},
+    {name:'Vitigudino',lat:41.0136,lng:-6.4411},
+  ],
+  'Santa Cruz de Tenerife': [
+    {name:'Santa Cruz de Tenerife',lat:28.4636,lng:-16.2518},{name:'La Laguna',lat:28.4853,lng:-16.3167},
+    {name:'Los Realejos',lat:28.3645,lng:-16.5865},{name:'Puerto de la Cruz',lat:28.4141,lng:-16.5483},
+    {name:'Arona',lat:28.1003,lng:-16.6807},{name:'Adeje',lat:28.1228,lng:-16.7269},
+    {name:'Granadilla de Abona',lat:28.1228,lng:-16.5707},{name:'La Orotava',lat:28.3870,lng:-16.5240},
+    {name:'Icod de los Vinos',lat:28.3700,lng:-16.7196},{name:'Güímar',lat:28.3120,lng:-16.4181},
+    {name:'Candelaria',lat:28.3537,lng:-16.3708},{name:'Santiago del Teide',lat:28.2966,lng:-16.8169},
+    {name:'Los Llanos de Aridane',lat:28.6575,lng:-17.9172},{name:'Santa Cruz de la Palma',lat:28.6835,lng:-17.7642},
+    {name:'San Cristóbal de la Laguna',lat:28.4853,lng:-16.3167},{name:'El Rosario',lat:28.4487,lng:-16.2739},
+    {name:'Tacoronte',lat:28.4773,lng:-16.4285},{name:'La Matanza de Acentejo',lat:28.4543,lng:-16.4847},
+  ],
+  'Segovia': [
+    {name:'Segovia',lat:40.9429,lng:-4.1088},{name:'Cuéllar',lat:41.4019,lng:-4.3179},
+    {name:'El Espinar',lat:40.7135,lng:-4.2453},{name:'San Ildefonso',lat:40.8979,lng:-4.0127},
+    {name:'Palazuelos de Eresma',lat:40.9773,lng:-4.1152},
+  ],
+  'Sevilla': [
+    {name:'Sevilla',lat:37.3891,lng:-5.9845},{name:'Dos Hermanas',lat:37.2827,lng:-5.9209},
+    {name:'Alcalá de Guadaíra',lat:37.3404,lng:-5.8370},{name:'Mairena del Aljarafe',lat:37.3496,lng:-6.0613},
+    {name:'San Juan de Aznalfarache',lat:37.3593,lng:-6.0088},{name:'Utrera',lat:37.1826,lng:-5.7799},
+    {name:'La Rinconada',lat:37.4792,lng:-5.9812},{name:'Camas',lat:37.3942,lng:-6.0335},
+    {name:'Écija',lat:37.5414,lng:-5.0826},{name:'Lebrija',lat:36.9219,lng:-6.0769},
+    {name:'Marchena',lat:37.3362,lng:-5.4269},{name:'Estepa',lat:37.2900,lng:-4.8769},
+    {name:'Osuna',lat:37.2381,lng:-5.1026},{name:'Morón de la Frontera',lat:37.1274,lng:-5.4518},
+    {name:'Bormujos',lat:37.3812,lng:-6.0693},{name:'Coria del Río',lat:37.2969,lng:-6.0506},
+    {name:'Tomares',lat:37.3726,lng:-6.0545},{name:'Carmona',lat:37.4688,lng:-5.6457},
+    {name:'Alcalá del Río',lat:37.5158,lng:-5.9790},{name:'Lora del Río',lat:37.6539,lng:-5.5203},
+    {name:'Arahal',lat:37.2673,lng:-5.5451},{name:'Guillena',lat:37.5560,lng:-6.0537},
+    {name:'Sanlúcar la Mayor',lat:37.3893,lng:-6.2009},{name:'Brenes',lat:37.5347,lng:-5.8771},
+    {name:'Cantillana',lat:37.5990,lng:-5.8198},{name:'Constantina',lat:37.8813,lng:-5.6108},
+    {name:'La Puebla del Río',lat:37.2664,lng:-6.0556},{name:'Gelves',lat:37.3418,lng:-6.0344},
+  ],
+  'Soria': [
+    {name:'Soria',lat:41.7640,lng:-2.4656},{name:'Almazán',lat:41.4893,lng:-2.5263},
+    {name:'El Burgo de Osma',lat:41.5889,lng:-3.0696},
+  ],
+  'Tarragona': [
+    {name:'Tarragona',lat:41.1190,lng:1.2445},{name:'Reus',lat:41.1559,lng:1.1065},
+    {name:'El Vendrell',lat:41.2178,lng:1.5353},{name:'Cambrils',lat:41.0651,lng:1.0585},
+    {name:'Salou',lat:41.0755,lng:1.1440},{name:'Tortosa',lat:40.8120,lng:0.5211},
+    {name:'Amposta',lat:40.7067,lng:0.5797},{name:'Valls',lat:41.2872,lng:1.2497},
+    {name:'Vila-seca',lat:41.1009,lng:1.1461},{name:'Calafell',lat:41.2013,lng:1.5718},
+    {name:'Constantí',lat:41.1515,lng:1.2034},{name:'Mont-roig del Camp',lat:41.0736,lng:1.0273},
+    {name:'Deltebre',lat:40.7234,lng:0.7116},{name:'Móra d\'Ebre',lat:41.0871,lng:0.6366},
+    {name:'La Canonja',lat:41.1332,lng:1.1800},
+  ],
+  'Teruel': [
+    {name:'Teruel',lat:40.3456,lng:-1.1065},{name:'Alcañiz',lat:41.0445,lng:-0.1308},
+    {name:'Andorra',lat:40.9771,lng:-0.4268},{name:'Utrillas',lat:40.7864,lng:-0.8353},
+    {name:'Calamocha',lat:40.9208,lng:-1.2947},
+  ],
+  'Toledo': [
+    {name:'Toledo',lat:39.8628,lng:-4.0273},{name:'Talavera de la Reina',lat:39.9617,lng:-4.8312},
+    {name:'Illescas',lat:40.1198,lng:-3.8465},{name:'Seseña',lat:40.1039,lng:-3.6907},
+    {name:'Madridejos',lat:39.5877,lng:-3.5306},{name:'Consuegra',lat:39.4577,lng:-3.6098},
+    {name:'Quintanar de la Orden',lat:39.5979,lng:-3.0434},{name:'Ocaña',lat:39.9539,lng:-3.5013},
+    {name:'Torrijos',lat:39.9945,lng:-4.2817},{name:'Mora',lat:39.6865,lng:-3.7729},
+    {name:'Escalona',lat:40.1700,lng:-4.4073},{name:'Santa Cruz de la Zarza',lat:39.9775,lng:-3.1754},
+    {name:'Orgaz',lat:39.6482,lng:-3.8842},{name:'Tembleque',lat:39.6904,lng:-3.5048},
+  ],
+  'Valencia': [
+    {name:'Valencia',lat:39.4699,lng:-0.3763},{name:'Torrent',lat:39.4329,lng:-0.4669},
+    {name:'Gandia',lat:38.9666,lng:-0.1833},{name:'Paterna',lat:39.5036,lng:-0.4405},
+    {name:'Mislata',lat:39.4739,lng:-0.4182},{name:'Burjassot',lat:39.5056,lng:-0.4115},
+    {name:'Sagunto',lat:39.6831,lng:-0.2710},{name:'Alzira',lat:39.1508,lng:-0.4346},
+    {name:'Manises',lat:39.4900,lng:-0.4576},{name:'Xirivella',lat:39.4621,lng:-0.4179},
+    {name:'Aldaia',lat:39.4637,lng:-0.4531},{name:'Paiporta',lat:39.4282,lng:-0.4172},
+    {name:'Catarroja',lat:39.4019,lng:-0.4054},{name:'Picassent',lat:39.3645,lng:-0.4578},
+    {name:'Sueca',lat:39.2028,lng:-0.3151},{name:'Oliva',lat:38.9163,lng:-0.1167},
+    {name:'Ontinyent',lat:38.8201,lng:-0.6072},{name:'Xàtiva',lat:38.9937,lng:-0.5161},
+    {name:'Quart de Poblet',lat:39.4790,lng:-0.4472},{name:'L\'Eliana',lat:39.5650,lng:-0.5223},
+    {name:'Alaquàs',lat:39.4599,lng:-0.4441},{name:'Cullera',lat:39.1633,lng:-0.2408},
+    {name:'Alboraya',lat:39.5079,lng:-0.3571},{name:'Algemesí',lat:39.1876,lng:-0.4357},
+    {name:'Carlet',lat:39.2327,lng:-0.5233},{name:'Puçol',lat:39.6101,lng:-0.2954},
+    {name:'Sedaví',lat:39.4310,lng:-0.3993},{name:'Picanya',lat:39.4291,lng:-0.4396},
+    {name:'Albal',lat:39.3972,lng:-0.4067},{name:'Lliria',lat:39.6289,lng:-0.5961},
+    {name:'Massanassa',lat:39.4122,lng:-0.3956},{name:'Requena',lat:39.4893,lng:-1.0995},
+    {name:'Utiel',lat:39.5647,lng:-1.2088},{name:'Xàbia',lat:38.7907,lng:0.1614},
+    {name:'Tavernes de la Valldigna',lat:39.0705,lng:-0.2763},{name:'Benifaió',lat:39.2860,lng:-0.4207},
+  ],
+  'Valladolid': [
+    {name:'Valladolid',lat:41.6523,lng:-4.7245},{name:'Laguna de Duero',lat:41.5894,lng:-4.7228},
+    {name:'Medina del Campo',lat:41.3095,lng:-4.9111},{name:'Arroyo de la Encomienda',lat:41.6285,lng:-4.7663},
+    {name:'Tordesillas',lat:41.5003,lng:-5.0049},{name:'Peñafiel',lat:41.6049,lng:-4.1145},
+    {name:'Medina de Rioseco',lat:41.8814,lng:-5.0420},{name:'Tudela de Duero',lat:41.5823,lng:-4.5807},
+    {name:'Iscar',lat:41.3650,lng:-4.5407},
+  ],
+  'Vizcaya': [
+    {name:'Bilbao',lat:43.2630,lng:-2.9350},{name:'Barakaldo',lat:43.2958,lng:-2.9959},
+    {name:'Getxo',lat:43.3562,lng:-3.0080},{name:'Basauri',lat:43.2367,lng:-2.8857},
+    {name:'Leioa',lat:43.3257,lng:-2.9892},{name:'Santurtzi',lat:43.3298,lng:-3.0299},
+    {name:'Portugalete',lat:43.3213,lng:-3.0186},{name:'Sestao',lat:43.3119,lng:-3.0022},
+    {name:'Durango',lat:43.1699,lng:-2.6349},{name:'Erandio',lat:43.3027,lng:-2.9685},
+    {name:'Galdakao',lat:43.2305,lng:-2.8460},{name:'Amorebieta',lat:43.2212,lng:-2.7321},
+    {name:'Bermeo',lat:43.4210,lng:-2.7217},{name:'Mungia',lat:43.3518,lng:-2.8468},
+    {name:'Gernika-Lumo',lat:43.3156,lng:-2.6756},{name:'Ondarroa',lat:43.3229,lng:-2.4224},
+    {name:'Balmaseda',lat:43.1938,lng:-3.2139},{name:'Markina-Xemein',lat:43.2619,lng:-2.4977},
+  ],
+  'Zamora': [
+    {name:'Zamora',lat:41.5010,lng:-5.7456},{name:'Benavente',lat:42.0028,lng:-5.6800},
+    {name:'Toro',lat:41.5213,lng:-5.3952},{name:'Puebla de Sanabria',lat:42.0569,lng:-6.6320},
+    {name:'Alcañices',lat:41.7023,lng:-6.3576},
+  ],
+  'Zaragoza': [
+    {name:'Zaragoza',lat:41.6488,lng:-0.8891},{name:'Calatayud',lat:41.3545,lng:-1.6437},
+    {name:'Utebo',lat:41.7159,lng:-1.0058},{name:'Ejea de los Caballeros',lat:42.1253,lng:-1.1374},
+    {name:'Tarazona',lat:41.9037,lng:-1.7274},{name:'Caspe',lat:41.2354,lng:-0.0389},
+    {name:'Cuarte de Huerva',lat:41.5956,lng:-0.9213},{name:'La Muela',lat:41.5970,lng:-1.0816},
+    {name:'Zuera',lat:41.8660,lng:-0.7888},{name:'Borja',lat:41.8352,lng:-1.5359},
+    {name:'María de Huerva',lat:41.5565,lng:-0.9605},{name:'Alagón',lat:41.7717,lng:-1.1358},
+    {name:'Épila',lat:41.5981,lng:-1.2829},{name:'Illueca',lat:41.5366,lng:-1.7025},
+  ],
+  'Ceuta': [
+    {name:'Ceuta',lat:35.8894,lng:-5.3213},
+  ],
+  'Melilla': [
+    {name:'Melilla',lat:35.2923,lng:-2.9381},
+  ],
+};
+
+// Derivar lista plana y mapa
+const CITIES = Object.values(PROVINCE_CITIES).flat();
+const CITY_MAP = {};
+CITIES.forEach(c => { CITY_MAP[c.name] = c; });
+
+// ── MAPA PROVINCIA → CC.AA. ──────────────────────────────────
+const PROVINCE_CA = {
+  'Álava':'País Vasco','Guipúzcoa':'País Vasco','Vizcaya':'País Vasco',
+  'Alicante':'C. Valenciana','Castellón':'C. Valenciana','Valencia':'C. Valenciana',
+  'Almería':'Andalucía','Cádiz':'Andalucía','Córdoba':'Andalucía',
+  'Granada':'Andalucía','Huelva':'Andalucía','Jaén':'Andalucía',
+  'Málaga':'Andalucía','Sevilla':'Andalucía',
+  'Asturias':'Asturias','Baleares':'Baleares','Cantabria':'Cantabria',
+  'Ávila':'Castilla y León','Burgos':'Castilla y León','León':'Castilla y León',
+  'Palencia':'Castilla y León','Salamanca':'Castilla y León','Segovia':'Castilla y León',
+  'Soria':'Castilla y León','Valladolid':'Castilla y León','Zamora':'Castilla y León',
+  'Albacete':'Castilla-La Mancha','Ciudad Real':'Castilla-La Mancha','Cuenca':'Castilla-La Mancha',
+  'Guadalajara':'Castilla-La Mancha','Toledo':'Castilla-La Mancha',
+  'Barcelona':'Cataluña','Girona':'Cataluña','Lleida':'Cataluña','Tarragona':'Cataluña',
+  'Badajoz':'Extremadura','Cáceres':'Extremadura',
+  'A Coruña':'Galicia','Lugo':'Galicia','Ourense':'Galicia','Pontevedra':'Galicia',
+  'Huesca':'Aragón','Teruel':'Aragón','Zaragoza':'Aragón',
+  'La Rioja':'La Rioja','Madrid':'Madrid','Murcia':'Murcia','Navarra':'Navarra',
+  'Las Palmas':'Canarias','Santa Cruz de Tenerife':'Canarias',
+  'Ceuta':'Ceuta','Melilla':'Melilla',
+};
+
+const CA_NEIGHBORS = {
+  'Madrid':['Castilla y León','Castilla-La Mancha','Extremadura'],
+  'Cataluña':['Aragón','C. Valenciana'],
+  'Andalucía':['Extremadura','Castilla-La Mancha','Murcia'],
+  'C. Valenciana':['Cataluña','Aragón','Castilla-La Mancha','Murcia','Andalucía'],
+  'Castilla y León':['Madrid','Extremadura','Galicia','Asturias','Cantabria','País Vasco','La Rioja','Aragón','Castilla-La Mancha'],
+  'Castilla-La Mancha':['Madrid','Extremadura','Andalucía','Murcia','C. Valenciana','Aragón','Castilla y León'],
+  'Galicia':['Castilla y León','Asturias'],
+  'Aragón':['Cataluña','C. Valenciana','Castilla-La Mancha','Castilla y León','La Rioja','Navarra','País Vasco'],
+  'País Vasco':['Navarra','La Rioja','Castilla y León','Cantabria'],
+  'Navarra':['País Vasco','La Rioja','Aragón','Castilla y León'],
+  'Extremadura':['Madrid','Castilla y León','Castilla-La Mancha','Andalucía'],
+  'Murcia':['Andalucía','Castilla-La Mancha','C. Valenciana'],
+  'Asturias':['Galicia','Castilla y León','Cantabria'],
+  'Cantabria':['Asturias','Castilla y León','País Vasco'],
+  'La Rioja':['País Vasco','Navarra','Aragón','Castilla y León'],
+  'Baleares':['Cataluña','C. Valenciana'],
+  'Canarias':['Andalucía'],'Ceuta':['Andalucía'],'Melilla':['Andalucía'],
+};
+
+// Pool de ficticias: 2-3 primeras ciudades de cada provincia (todas >20k hab.)
+// Madrid y Barcelona tienen más peso para que salgan más a menudo
+const FICTICIAS_POOL = (function() {
+  const pool = [];
+  for (const [prov, cities] of Object.entries(PROVINCE_CITIES)) {
+    const ca = PROVINCE_CA[prov] || prov;
+    cities.slice(0, 3).forEach(c => pool.push({ ...c, ca }));
+  }
+  // Peso extra: Madrid x3, Barcelona x2, Sevilla/Valencia x1 extra
+  ['Madrid','Madrid','Madrid','Barcelona','Barcelona','Sevilla','Valencia'].forEach(n => {
+    const c = CITY_MAP[n]; if (c) pool.push({ ...c, ca: PROVINCE_CA[n] || '' });
+  });
+  return pool;
+})();
+
+let _real24h = 0; // se rellena en loadStats
+
+// ── STATS CACHE (para actualizaciones en tiempo real) ─────────
+const _stats = { total: 0, today: 0, week: 0, male: 0, female: 0, totalGender: 0 };
+
+// Ranking en memoria: { ciudad: { total, week, today } }
+const _rankData = {};
+
+function _renderRanking() {
+  const medals = ['gold','silver','bronze','',''];
+  const top5 = Object.entries(_rankData)
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 5);
+  const list = document.getElementById('rankingList');
+  list.innerHTML = top5.map(([city, d], i) => `
+    <div class="ranking-item">
+      <div class="rank-pos ${medals[i]}">${i+1}</div>
+      <div class="rank-body">
+        <div class="rank-city">${city}</div>
+        <div class="rank-stats">
+          <span class="rank-pill"><span class="rn">${d.total}</span>total</span>
+          <span class="rank-pill"><span class="rn">${d.week}</span>sem</span>
+          <span class="rank-pill"><span class="rn">${d.today}</span>hoy</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function _updateStatsDisplay() {
+  const fmt = n => n.toLocaleString('es-ES');
+  document.getElementById('totalCounter').textContent = fmt(_stats.total);
+  document.getElementById('statToday').textContent    = fmt(_stats.today);
+  document.getElementById('statWeek').textContent     = fmt(_stats.week);
+  const n = _stats.totalGender;
+  if (n > 0) {
+    document.getElementById('statMale').textContent   = Math.round(_stats.male   / n * 100) + '%';
+    document.getElementById('statFemale').textContent = Math.round(_stats.female / n * 100) + '%';
+  }
+}
+
+// Solo se llama con reportes REALES (Realtime o submit propio). Las ficticias nunca tocan esto.
+function bumpStats(gender, createdAt, city) {
+  const now      = new Date();
+  const todayISO = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const weekDate = new Date(now);
+  weekDate.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  weekDate.setHours(0,0,0,0);
+  const weekISO  = weekDate.toISOString();
+  const ts       = createdAt || new Date().toISOString();
+  const isToday  = ts >= todayISO;
+  const isWeek   = ts >= weekISO;
+
+  _stats.total++;
+  if (isToday) _stats.today++;
+  if (isWeek)  _stats.week++;
+  _stats.totalGender++;
+  if (gender === 'm') _stats.male++;
+  if (gender === 'f') _stats.female++;
+
+  if (city) {
+    if (!_rankData[city]) _rankData[city] = { total: 0, week: 0, today: 0 };
+    _rankData[city].total++;
+    if (isWeek)  _rankData[city].week++;
+    if (isToday) _rankData[city].today++;
+    _renderRanking();
+  }
+
+  const cEl = document.getElementById('totalCounter');
+  cEl.classList.add('bump');
+  setTimeout(() => cEl.classList.remove('bump'), 600);
+  _updateStatsDisplay();
+}
+
+// ── FICTICIAS LOOP ────────────────────────────────────────────
+function getFicticiaIntervalMs() {
+  const days = Math.floor((Date.now() - new Date(LAUNCH_DATE).getTime()) / 86400000);
+  let baseMin, baseMax;
+  if (days < 4)       { baseMin = 480; baseMax = 720; }  // 8-12 min
+  else if (days < 8)  { baseMin = 300; baseMax = 480; }  // 5-8 min
+  else if (days < 15) { baseMin = 180; baseMax = 300; }  // 3-5 min
+  else                { baseMin = 60;  baseMax = 180; }  // 1-3 min
+
+  const factor = _real24h > 20 ? 5 : _real24h > 5 ? 2 : 1;
+  return Math.round((baseMin + Math.random() * (baseMax - baseMin)) * factor * 1000);
+}
+
+// Mapa de provincias limítrofes (para ficticias cercanas)
+const PROVINCE_NEIGHBORS = {
+  'Madrid':['Toledo','Guadalajara','Segovia','Ávila','Cuenca'],
+  'Barcelona':['Girona','Lleida','Tarragona','Girona'],
+  'Valencia':['Castellón','Alicante','Albacete','Cuenca','Teruel'],
+  'Sevilla':['Huelva','Cádiz','Málaga','Córdoba','Badajoz'],
+  'Zaragoza':['Huesca','Teruel','Lleida','Navarra','La Rioja','Soria','Guadalajara','Castellón'],
+  'Málaga':['Sevilla','Granada','Cádiz'],
+  'Alicante':['Valencia','Murcia','Albacete'],
+  'Murcia':['Alicante','Almería','Granada','Albacete'],
+  'Córdoba':['Sevilla','Jaén','Málaga','Granada','Ciudad Real','Badajoz'],
+  'Valladolid':['Palencia','Burgos','Segovia','Ávila','Zamora','Salamanca','León'],
+  'Bilbao':['Álava','Guipúzcoa'],
+  'Vizcaya':['Álava','Guipúzcoa','Burgos','Cantabria'],
+  'Álava':['Vizcaya','Guipúzcoa','Navarra','Burgos','La Rioja'],
+  'Guipúzcoa':['Vizcaya','Álava','Navarra'],
+  'Navarra':['Guipúzcoa','Álava','La Rioja','Zaragoza','Huesca'],
+  'Granada':['Málaga','Almería','Jaén','Córdoba','Murcia'],
+  'Almería':['Murcia','Granada','Jaén'],
+  'Jaén':['Granada','Córdoba','Ciudad Real','Albacete','Almería'],
+  'Cádiz':['Sevilla','Málaga','Huelva'],
+  'Huelva':['Sevilla','Cádiz','Badajoz'],
+  'Badajoz':['Cáceres','Sevilla','Huelva','Córdoba','Toledo'],
+  'Cáceres':['Badajoz','Salamanca','Ávila','Toledo','Segovia'],
+  'Toledo':['Madrid','Ciudad Real','Cáceres','Badajoz','Ávila','Cuenca'],
+  'Ciudad Real':['Toledo','Cuenca','Albacete','Jaén','Córdoba','Badajoz'],
+  'Albacete':['Murcia','Alicante','Valencia','Cuenca','Ciudad Real','Jaén','Granada'],
+  'Cuenca':['Madrid','Guadalajara','Teruel','Valencia','Albacete','Toledo','Ciudad Real'],
+  'Guadalajara':['Madrid','Cuenca','Teruel','Zaragoza','Soria','Segovia'],
+  'Segovia':['Madrid','Ávila','Valladolid','Burgos','Soria','Guadalajara','Cáceres'],
+  'Ávila':['Madrid','Toledo','Cáceres','Salamanca','Valladolid','Segovia'],
+  'Salamanca':['Ávila','Cáceres','Zamora','Valladolid','Segovia'],
+  'Zamora':['Salamanca','Valladolid','León','Ourense','Pontevedra'],
+  'León':['Zamora','Valladolid','Palencia','Burgos','Asturias','Lugo','Ourense'],
+  'Palencia':['León','Valladolid','Burgos','Cantabria'],
+  'Burgos':['Palencia','León','Cantabria','Vizcaya','Álava','La Rioja','Soria','Segovia'],
+  'Soria':['Burgos','La Rioja','Zaragoza','Guadalajara','Segovia'],
+  'La Rioja':['Álava','Navarra','Zaragoza','Soria','Burgos'],
+  'Huesca':['Navarra','Zaragoza','Lleida','Lérida'],
+  'Lleida':['Huesca','Tarragona','Barcelona','Girona','Zaragoza'],
+  'Tarragona':['Lleida','Barcelona','Castellón'],
+  'Girona':['Barcelona','Lleida'],
+  'Castellón':['Tarragona','Teruel','Valencia','Zaragoza'],
+  'Teruel':['Zaragoza','Castellón','Valencia','Albacete','Cuenca','Guadalajara'],
+  'Asturias':['León','Lugo','Cantabria'],
+  'Cantabria':['Asturias','León','Palencia','Burgos','Vizcaya'],
+  'Lugo':['Asturias','León','Ourense','A Coruña','Pontevedra'],
+  'A Coruña':['Lugo','Pontevedra'],
+  'Ourense':['Zamora','León','Lugo','Pontevedra'],
+  'Pontevedra':['Ourense','Lugo','A Coruña','Zamora'],
+  'Baleares':[],'Las Palmas':[],'Santa Cruz de Tenerife':[],'Ceuta':[],'Melilla':[],
+};
+
+function generateFicticia() {
+  const origin = rnd(FICTICIAS_POOL);
+  const gender = rnd(['m','m','m','f','f','f','gm','gf']);
+  let dest;
+  if (Math.random() < 0.8) {
+    dest = origin;
+  } else {
+    const r = Math.random();
+    let candidates;
+    if (r < 0.55) {
+      // 55% del 20%: misma provincia
+      candidates = FICTICIAS_POOL.filter(c => c.ca === origin.ca && c.name !== origin.name);
+    } else if (r < 0.85) {
+      // 30% del 20%: provincia limítrofe
+      const neighborProvs = PROVINCE_NEIGHBORS[origin.ca] || [];
+      candidates = FICTICIAS_POOL.filter(c => neighborProvs.includes(c.ca) && c.name !== origin.name);
+    } else {
+      // 15% del 20%: misma CC.AA. o limítrofe
+      const allowed = [origin.ca, ...(CA_NEIGHBORS[origin.ca] || [])];
+      candidates = FICTICIAS_POOL.filter(c => allowed.includes(c.ca) && c.name !== origin.name);
+    }
+    dest = candidates.length ? rnd(candidates) : origin;
+  }
+  return { origin, dest, gender };
+}
+
+function startFicticiaLoop() {
+  function tick() {
+    const interval = getFicticiaIntervalMs();
+    const { origin, dest, gender } = generateFicticia();
+    // Solo animación visual — el insert lo hace el cron job del servidor
+    drawArrow(origin.name, dest.name, gender);
+    pushFeedMsg(makeAlert(origin.name, dest.name, gender), gender);
+    setTimeout(tick, interval);
+  }
+  tick();
+}
+
+// ── LIVE ALERT ───────────────────────────────────────────────
+function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function makeAlert(origin, dest, gender) {
+  const o = origin || rnd(CITIES).name;
+  const d = dest   || rnd(CITIES).name;
+  const mismo = o === d;
+
+  if (gender === 'm' || gender === 'gm') {
+    return mismo
+      ? `Un hombre de ${o} está siendo infiel con alguien de su propio municipio`
+      : `Un hombre de ${o} está siendo infiel con alguien de ${d}`;
+  }
+  return mismo
+    ? `Una mujer de ${o} está siendo infiel con alguien de su propio municipio`
+    : `Una mujer de ${o} está siendo infiel con alguien de ${d}`;
+}
+
+const MAX_FEED_MSGS = 5;
+
+function pushFeedMsg(text, gender) {
+  const feed = document.getElementById('liveFeed');
+  if (!feed) return;
+
+  const color = gender === 'f' ? '#FF6BB5'
+              : (gender === 'gm' || gender === 'gf') ? '#C77DFF'
+              : '#5BA3E0';
+
+  // Nuevo mensaje entra por arriba
+  const msg = document.createElement('div');
+  msg.className = 'feed-msg new';
+  msg.style.borderLeftColor = color;
+  msg.textContent = text;
+  feed.insertBefore(msg, feed.firstChild);
+
+  // Quitar clase 'new' tras la animación de entrada
+  setTimeout(() => msg.classList.remove('new'), 400);
+
+  // Si hay más de MAX_FEED_MSGS, desvanecer el más antiguo (abajo)
+  const msgs = feed.querySelectorAll('.feed-msg');
+  if (msgs.length > MAX_FEED_MSGS) {
+    const oldest = msgs[msgs.length - 1];
+    oldest.classList.add('fading');
+    setTimeout(() => oldest.remove(), 750);
+  }
+}
+
+// ── MAP ─────────────────────────────────────────────────────
+const map = L.map('map', { attributionControl: true })
+  .setView([40.4, -3.7], 6);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+  subdomains: 'abcd',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── PULSOS ───────────────────────────────────────────────────
+function pulseColor(g) {
+  if (g === 'm') return '#5BA3E0';
+  if (g === 'f') return '#FF6BB5';
+  return null; // lgbtq usa animación rainbow
+}
+
+function spawnPulse(cityName, gender) {
+  const c = CITY_MAP[cityName];
+  if (!c) return;
+
+  const isLGBTQ = gender === 'gm' || gender === 'gf';
+  const color   = pulseColor(gender);
+
+  const makeWave = (cls) => {
+    const style = isLGBTQ
+      ? `background:transparent;border:2px solid #FF6BB5;`
+      : `background:${color};`;
+    return `<div class="report-pulse ${cls}${isLGBTQ ? ' lgbtq' : ''}" style="${style}"></div>`;
+  };
+
+  const html = `<div style="position:relative;width:0;height:0;">
+    ${makeWave('wave-1')}
+    ${makeWave('wave-2')}
+    ${makeWave('wave-3')}
+  </div>`;
+
+  const marker = L.marker([c.lat, c.lng], {
+    icon: L.divIcon({ html, className: '', iconSize: [0,0], iconAnchor: [0,0] }),
+    interactive: false,
+    zIndexOffset: 20,
+  }).addTo(map);
+
+  // Eliminar el marcador tras completar la animación (3 ondas × 2.2s + 0.8s delay)
+  setTimeout(() => { if (map.hasLayer(marker)) map.removeLayer(marker); }, 3400);
+}
+
+function drawArrow(originName, destName, gender) {
+  spawnPulse(originName, gender);
+  if (destName && destName !== originName) spawnPulse(destName, gender);
+}
+
+// ── LOAD PULSES ───────────────────────────────────────────────
+let _arrowPool = [];
+let _poolIdx   = 0;
+
+async function loadArrows() {
+
+  // Obtener reportes recientes via REST directo (evita bugs del SDK CDN con .order())
+  let recent = null;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reports?select=origin_city,destination_city,gender,created_at&order=created_at.desc&limit=20`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    if (res.ok) recent = await res.json();
+    else console.error('[InfielMap] feed REST error', res.status, await res.text());
+  } catch (e) {
+    console.error('[InfielMap] feed fetch error', e);
+    // Fallback: RPC
+    const { data, error } = await sb.rpc('get_recent_reports', { lim: 20 });
+    if (error) console.error('[InfielMap] RPC error', error);
+    else recent = data;
+  }
+
+  if (recent && recent.length) {
+    // Iterar de más antiguo a más nuevo para que el más reciente quede arriba con insertBefore
+    recent.slice(0, 5).reverse().forEach((r, i) => setTimeout(() => {
+      drawArrow(r.origin_city, r.destination_city, r.gender);
+      pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
+    }, i * 1500));
+  }
+
+  // Cache a pool for the continuous loop
+  const { data: pool } = await sb.from('reports')
+    .select('origin_city,destination_city,gender')
+    .limit(400);
+  if (pool) _arrowPool = pool;
+
+}
+
+
+// ── FICTICIAS PENDIENTES ──────────────────────────────────────
+async function insertarFicticiasPendientes() {
+  try {
+    const launchTime  = new Date(LAUNCH_DATE).getTime();
+    const now         = Date.now();
+    const INTERVALO   = 8 * 60 * 1000; // 8 min = ritmo del cron
+
+    const esperadas = Math.floor((now - launchTime) / INTERVALO);
+
+    const { count: existentes } = await sb
+      .from('reports')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_fake', true);
+
+    const deficit    = esperadas - (existentes || 0);
+    const aInsertar  = Math.min(Math.max(deficit, 0), 500);
+    if (aInsertar <= 0) return;
+
+    // Desde cuándo interpolar: justo después de la última ficticia existente
+    const { data: ultima } = await sb
+      .from('reports')
+      .select('created_at')
+      .eq('is_fake', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const desde = (ultima && ultima.length > 0)
+      ? new Date(ultima[0].created_at).getTime() + INTERVALO
+      : launchTime;
+
+    const rows = [];
+    for (let i = 0; i < aInsertar; i++) {
+      const { origin, dest, gender } = generateFicticia();
+      const fraction = aInsertar === 1 ? 1 : i / (aInsertar - 1);
+      const ts = new Date(desde + fraction * (now - desde));
+      rows.push({
+        gender,
+        origin_city:      origin.name,
+        destination_city: dest.name,
+        is_fake:          true,
+        is_celebrity:     false,
+        confirmed_count:  0,
+        is_confirmed:     false,
+        created_at:       ts.toISOString(),
+      });
+    }
+
+    for (let i = 0; i < rows.length; i += 50) {
+      await sb.from('reports').insert(rows.slice(i, i + 50));
+    }
+  } catch (err) {
+    console.error('Error insertando ficticias pendientes:', err);
+  }
+}
+
+// ── HELPERS REST DIRECTOS (evita bugs del SDK CDN con .gte/.order) ──────────
+const _SB_HEADERS = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
+async function sbRestCount(filter) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=id${filter}`, {
+      headers: { ..._SB_HEADERS, Prefer: 'count=exact', Range: '0-0' }
+    });
+    const range = res.headers.get('Content-Range');
+    return range ? parseInt(range.split('/')[1]) || 0 : 0;
+  } catch { return 0; }
+}
+
+async function sbRestSelect(params) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?${params}`, { headers: _SB_HEADERS });
+    return res.ok ? await res.json() : [];
+  } catch { return []; }
+}
+
+// ── STATS ────────────────────────────────────────────────────
+// Medianoche UTC de hoy — misma referencia en ranking e historial
+function getTodayUTC() {
+  const n = new Date();
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate())).toISOString();
+}
+function getWeekStartUTC() {
+  const n = new Date();
+  const offset = (n.getUTCDay() + 6) % 7; // días desde el lunes
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() - offset)).toISOString();
+}
+
+async function actualizarTodosLosContadores() {
+  const todayISO = getTodayUTC();
+  const weekISO  = getWeekStartUTC();
+
+  const [total, todayCount, weekCount, gnData, cityData, wkCityData, todCityData] = await Promise.all([
+    sbRestCount(''),
+    sbRestCount(`&created_at=gte.${todayISO}`),
+    sbRestCount(`&created_at=gte.${weekISO}`),
+    sbRestSelect('select=gender&limit=10000'),
+    sbRestSelect('select=origin_city&limit=10000'),
+    sbRestSelect(`select=origin_city&created_at=gte.${weekISO}&limit=10000`),
+    sbRestSelect(`select=origin_city&created_at=gte.${todayISO}&limit=10000`),
+  ]);
+
+  _real24h = todayCount;
+  _stats.total       = total;
+  _stats.today       = todayCount;
+  _stats.week        = weekCount;
+  _stats.totalGender = gnData.length;
+  _stats.male        = gnData.filter(r => r.gender === 'm').length;
+  _stats.female      = gnData.filter(r => r.gender === 'f').length;
+
+  _updateStatsDisplay();
+
+  if (cityData.length > 0) {
+    Object.keys(_rankData).forEach(k => delete _rankData[k]);
+
+    cityData.forEach(r => {
+      if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
+      _rankData[r.origin_city].total++;
+    });
+    wkCityData.forEach(r => {
+      if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
+      _rankData[r.origin_city].week++;
+    });
+    todCityData.forEach(r => {
+      if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
+      _rankData[r.origin_city].today++;
+    });
+
+    _renderRanking();
+  }
+}
+
+// ── MODAL ────────────────────────────────────────────────────
+let _gender = null;
+
+function hasReportedToday() {
+  const last = localStorage.getItem('im_last_report');
+  if (!last) return false;
+  return new Date(last).toDateString() === new Date().toDateString();
+}
+
+document.getElementById('notifyBtn').addEventListener('click', () => {
+  _gender = null;
+  document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('notifyForm').reset();
+  document.querySelectorAll('.field-error').forEach(e => e.style.display = 'none');
+  taOrigin.reset();
+  taDest.reset();
+  // LÍMITE DIARIO DESACTIVADO TEMPORALMENTE (reactivar antes de lanzar)
+  document.getElementById('notifyForm').style.display = '';
+  document.getElementById('limitMsg').style.display   = 'none';
+
+  document.getElementById('modalOverlay').classList.add('active');
+});
+
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+  document.getElementById('notifyForm').style.display  = '';
+  document.getElementById('limitMsg').style.display    = 'none';
+  _gender = null;
+  document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
+}
+
+document.querySelectorAll('.gender-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    _gender = btn.dataset.gender;
+  });
+});
+
+// ── TYPEAHEAD (Nominatim) ────────────────────────────────────
+async function searchMunicipios(q) {
+  try {
+    // Photon (OpenStreetMap): autocompletado de municipios con prefijos
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=10&bbox=-9.5,35.9,4.5,43.8`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const seen = new Set();
+    return (data.features || [])
+      .filter(f => {
+        const p = f.properties;
+        return p.countrycode === 'ES' &&
+               (p.osm_key === 'place' || p.osm_key === 'boundary') &&
+               ['city','town','village','hamlet','municipality','administrative','quarter','suburb'].includes(p.osm_value);
+      })
+      .map(f => {
+        const p   = f.properties;
+        const [lng, lat] = f.geometry.coordinates;
+        const name    = p.name;
+        const detail  = [p.county, p.state].filter(Boolean).join(', ');
+        const display = detail ? `${name}, ${detail}` : name;
+        return { name, display, lat, lng };
+      })
+      .filter(r => {
+        if (!r.name || seen.has(r.name)) return false;
+        seen.add(r.name); return true;
+      });
+  } catch { return []; }
+}
+
+function createTypeahead(inputId, dropId) {
+  const input    = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropId);
+  let timer      = null;
+  let selected   = null;
+
+  // Mover el dropdown al body para que no quede clippeado por el modal
+  document.body.appendChild(dropdown);
+
+  function positionDropdown() {
+    const rect   = input.getBoundingClientRect();
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    dropdown.style.top   = (rect.bottom + scrollY + 4) + 'px';
+    dropdown.style.left  = (rect.left  + scrollX) + 'px';
+    dropdown.style.width = rect.width + 'px';
+  }
+
+  input.addEventListener('input', () => {
+    selected = null;
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 2) { dropdown.classList.remove('open'); return; }
+    positionDropdown();
+    dropdown.innerHTML = '<div class="ta-loading">Buscando…</div>';
+    dropdown.classList.add('open');
+    timer = setTimeout(async () => {
+      const results = await searchMunicipios(q);
+      if (!results.length) {
+        dropdown.innerHTML = '<div class="ta-empty">Sin resultados</div>';
+        return;
+      }
+      dropdown._results = results;
+      dropdown.innerHTML = results.map((r, i) => `
+        <div class="ta-item" data-idx="${i}">
+          <div class="ta-main">${r.name}</div>
+          <div class="ta-sub">${r.display}</div>
+        </div>`).join('');
+    }, 320);
+  });
+
+  dropdown.addEventListener('mousedown', e => {
+    const item = e.target.closest('.ta-item');
+    if (!item) return;
+    e.preventDefault();
+    const r = dropdown._results[+item.dataset.idx];
+    input.value = r.name;
+    selected    = r;
+    dropdown.classList.remove('open');
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => dropdown.classList.remove('open'), 150);
+  });
+
+  return {
+    get:   ()  => selected,
+    reset: ()  => { input.value = ''; selected = null; dropdown.classList.remove('open'); },
+  };
+}
+
+// Cascada provincia → municipio (solo para historial)
+const PROVINCE_NAMES = Object.keys(PROVINCE_CITIES).sort((a,b) => a.localeCompare(b,'es'));
+
+function setupCascades() {
+  // Historia
+  const histProvEl = document.getElementById('histProv');
+  const histCityEl = document.getElementById('histCity');
+  histProvEl.innerHTML = '<option value="">Todas las provincias</option>';
+  PROVINCE_NAMES.forEach(p => {
+    const o = document.createElement('option'); o.value = p; o.textContent = p;
+    histProvEl.appendChild(o);
+  });
+  histProvEl.addEventListener('change', () => {
+    const prov = histProvEl.value;
+    histCityEl.innerHTML = '<option value="">Todos los municipios</option>';
+    if (prov && PROVINCE_CITIES[prov]) {
+      [...PROVINCE_CITIES[prov]].sort((a,b) => a.name.localeCompare(b.name,'es')).forEach(c => {
+        const o = document.createElement('option'); o.value = c.name; o.textContent = c.name;
+        histCityEl.appendChild(o);
+      });
+    }
+  });
+}
+
+// Instancias del typeahead para origen y destino
+let taOrigin, taDest;
+
+// ── SUBMIT REPORT (función reutilizable) ─────────────────────
+async function submitReport(gender, originSel, destSel) {
+  const { error } = await sb.from('reports').insert({
+    gender,
+    origin_city:      originSel.name,
+    destination_city: destSel.name,
+    is_celebrity:     false,
+    confirmed_count:  0,
+    is_confirmed:     false,
+  });
+  if (error) { console.error('Supabase insert error:', error); return false; }
+
+  if (originSel.lat) CITY_MAP[originSel.name] = { name: originSel.name, lat: originSel.lat, lng: originSel.lng };
+  if (destSel.lat)   CITY_MAP[destSel.name]   = { name: destSel.name,   lat: destSel.lat,   lng: destSel.lng };
+
+  const _now = new Date().toISOString();
+  const _key = _now + '|' + originSel.name + '|' + gender;
+  _recentInserts.add(_key);
+  setTimeout(() => _recentInserts.delete(_key), 10000);
+  drawArrow(originSel.name, destSel.name, gender);
+  pushFeedMsg(makeAlert(originSel.name, destSel.name, gender), gender);
+  bumpStats(gender, _now, originSel.name);
+
+  _arrowPool.push({ origin_city: originSel.name, destination_city: destSel.name, gender });
+  localStorage.setItem('im_last_report', new Date().toISOString());
+  return true;
+}
+
+// Form submit
+document.getElementById('notifyForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  document.querySelectorAll('.field-error').forEach(x => x.style.display = 'none');
+
+  let ok = true;
+  const show = id => { document.getElementById(id).style.display = 'block'; ok = false; };
+
+  if (!_gender || !['m','f','gm','gf'].includes(_gender)) show('errGender');
+  const originSel = taOrigin.get();
+  if (!originSel) show('errOrigin');
+  const destSel   = taDest.get();
+  if (!destSel)   show('errDest');
+  if (!ok) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Enviando…';
+
+  const saved = await submitReport(_gender, originSel, destSel);
+  btn.disabled    = false;
+  btn.textContent = 'Confirmar reporte';
+  if (!saved) { alert('Error al enviar el reporte. Inténtalo de nuevo.'); return; }
+  closeModal();
+  showToast('¡Infidelidad registrada!');
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3600);
+}
+
+// ── RANKING COMPLETO ─────────────────────────────────────────
+(function() {
+  let _allRows = []; // [{pos, city, total, week, today}]
+
+  function buildRows() {
+    return Object.entries(_rankData)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([city, d], i) => ({ pos: i + 1, city, total: d.total, week: d.week, today: d.today }));
+  }
+
+  function posClass(pos) {
+    if (pos === 1) return 'gold';
+    if (pos === 2) return 'silver';
+    if (pos === 3) return 'bronze';
+    return '';
+  }
+
+  function renderRows(rows, highlight) {
+    const tbody = document.getElementById('rankfullBody');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="rankfull-empty">No hay datos todavía.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r => {
+      const hl = highlight && r.city.toLowerCase().includes(highlight) ? ' highlighted' : '';
+      return `<tr class="${hl}">
+        <td class="rankfull-pos ${posClass(r.pos)}">${r.pos}</td>
+        <td class="rankfull-city">${r.city}</td>
+        <td class="rankfull-num">${r.total}</td>
+        <td class="rankfull-num">${r.week}</td>
+        <td class="rankfull-num">${r.today}</td>
+      </tr>`;
+    }).join('');
+    // Scroll automático a la primera coincidencia
+    if (highlight) {
+      const row = tbody.querySelector('.highlighted');
+      if (row) setTimeout(() => row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
+    }
+  }
+
+  function openRankFull() {
+    _allRows = buildRows();
+    renderRows(_allRows, '');
+    document.getElementById('rankfullSearch').value = '';
+    document.getElementById('rankfullOverlay').classList.add('active');
+  }
+
+  document.getElementById('openRankFull').addEventListener('click', openRankFull);
+  document.getElementById('rankfullClose').addEventListener('click', () => {
+    document.getElementById('rankfullOverlay').classList.remove('active');
+  });
+  document.getElementById('rankfullOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) document.getElementById('rankfullOverlay').classList.remove('active');
+  });
+
+  document.getElementById('rankfullSearch').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) { renderRows(_allRows, ''); return; }
+    const filtered = _allRows.filter(r => r.city.toLowerCase().includes(q));
+    renderRows(filtered.length ? filtered : _allRows, q);
+  });
+})();
+
+// ── HISTORY MODAL ────────────────────────────────────────────
+(function() {
+  const GENDER_COLOR = { m:'#5BA3E0', f:'#FF6BB5', gm:'#C77DFF', gf:'#C77DFF' };
+  const GENDER_LABEL = { m:'♂ Hombre', f:'♀ Mujer', gm:'🌈 Gay', gf:'🌈 Lesbiana' };
+
+  let taHistCity;
+
+  async function runHistSearch() {
+    const dateVal   = document.getElementById('histDate').value;
+    const cityVal   = taHistCity ? taHistCity.get() : null;
+    const resultsEl = document.getElementById('histResults');
+    resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
+
+    // Construir parámetros REST directos (evita bug SDK CDN con .gte/.order)
+    let params = 'select=origin_city,destination_city,gender,created_at&order=created_at.desc&limit=500';
+
+    if (dateVal) {
+      const d    = new Date(dateVal);
+      const from = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+      const to   = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - 1).toISOString();
+      params += `&created_at=gte.${from}&created_at=lte.${to}`;
+    } else {
+      params += `&created_at=gte.${getTodayUTC()}`;
+    }
+    if (cityVal && cityVal.name) {
+      const city = encodeURIComponent(cityVal.name);
+      params += `&or=(origin_city.eq.${city},destination_city.eq.${city})`;
+    }
+
+    const data = await sbRestSelect(params);
+    console.log('[HIST] params:', params);
+    console.log('[HIST] total registros devueltos:', data ? data.length : 0);
+    if (data && data.length > 0) {
+      console.log('[HIST] primeros 5:', data.slice(0, 5).map(r => `${r.origin_city}→${r.destination_city} (${r.created_at})`));
+    }
+    if (!data || data.length === 0) {
+      resultsEl.innerHTML = '<div class="hist-empty">No hay reportes para esos filtros.</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = data.map(r => {
+      const color = GENDER_COLOR[r.gender] || '#5BA3E0';
+      const label = GENDER_LABEL[r.gender] || '';
+      const dt    = new Date(r.created_at);
+      const hour  = dt.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+      const day   = dt.toLocaleDateString('es-ES', { day:'numeric', month:'short' });
+      return `
+        <div class="hist-item">
+          <div class="hist-bar" style="background:${color}"></div>
+          <div class="hist-info">
+            <div class="hist-cities">${r.origin_city} → ${r.destination_city}</div>
+            <div class="hist-meta">${label} · ${day} · ${hour}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function openHistory() {
+    console.log('[HIST] openHistory llamado');
+    document.getElementById('histOverlay').classList.add('active');
+    if (!taHistCity) {
+      taHistCity = createTypeahead('histCityInput', 'histCityDrop');
+    }
+    // Pre-rellenar con hoy en UTC para que coincida exactamente con el ranking
+    const dateInput = document.getElementById('histDate');
+    if (!dateInput.value) {
+      const n = new Date();
+      dateInput.value = `${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}-${String(n.getUTCDate()).padStart(2,'0')}`;
+    }
+    console.log('[HIST] llamando runHistSearch...');
+    runHistSearch();
+  }
+  function closeHistory() {
+    document.getElementById('histOverlay').classList.remove('active');
+  }
+  document.getElementById('openHistory').addEventListener('click', openHistory);
+  document.getElementById('histClose').addEventListener('click', closeHistory);
+  document.getElementById('histOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeHistory();
+  });
+
+  document.getElementById('histSearchBtn').addEventListener('click', runHistSearch);
+})();
+
+// ── MOBILE PANEL ─────────────────────────────────────────────
+(function() {
+  const panel    = document.querySelector('.left-panel');
+  const backdrop = document.getElementById('panelBackdrop');
+  const toggleBtn = document.getElementById('panelToggleBtn');
+
+  function openPanel()  { panel.classList.add('open'); backdrop.classList.add('show'); toggleBtn.classList.add('panel-open'); toggleBtn.textContent = '✕'; }
+  function closePanel() { panel.classList.remove('open'); backdrop.classList.remove('show'); toggleBtn.classList.remove('panel-open'); toggleBtn.textContent = '☰'; }
+
+  toggleBtn.addEventListener('click', () => {
+    panel.classList.contains('open') ? closePanel() : openPanel();
+  });
+  backdrop.addEventListener('click', closePanel);
+
+  // Cerrar panel al pulsar botón de reportar (abre otro modal)
+  document.getElementById('notifyBtn').addEventListener('click', closePanel);
+})();
+
+// ── LEGAL MODAL ──────────────────────────────────────────────
+function showLegal(type) {
+  const tpl = document.getElementById(type === 'privacidad' ? 'tplPrivacidad' : 'tplAviso');
+  document.getElementById('legalContent').innerHTML = tpl.innerHTML;
+  document.getElementById('legalOverlay').classList.add('active');
+}
+document.getElementById('legalClose').addEventListener('click', () => {
+  document.getElementById('legalOverlay').classList.remove('active');
+});
+document.getElementById('legalOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) document.getElementById('legalOverlay').classList.remove('active');
+});
+
+// ── COOKIES ──────────────────────────────────────────────────
+(function() {
+  const KEY = 'im_cookies';
+  const banner = document.getElementById('cookieBanner');
+
+  function hideBanner() {
+    banner.classList.add('hidden');
+  }
+
+  function loadAdsense() {
+    // Aquí se cargará AdSense cuando tengamos el código real
+    // Por ahora solo marca que está activo
+    document.querySelectorAll('.ad-inner-728, .ad-inner-300').forEach(el => {
+      el.dataset.adsenseReady = 'true';
+    });
+  }
+
+  const consent = localStorage.getItem(KEY);
+  if (consent === null) {
+    // Primera visita: mostrar banner tras medio segundo
+    setTimeout(() => banner.classList.remove('hidden'), 500);
+  } else if (consent === 'accepted') {
+    loadAdsense();
+  }
+
+  document.getElementById('cookieAccept').addEventListener('click', () => {
+    localStorage.setItem(KEY, 'accepted');
+    hideBanner();
+    loadAdsense();
+  });
+
+  document.getElementById('cookieReject').addEventListener('click', () => {
+    localStorage.setItem(KEY, 'rejected');
+    hideBanner();
+  });
+})();
+
+// ── SUPABASE REALTIME ─────────────────────────────────────────
+const _recentInserts = new Set();
+let _statsDebounce = null;
+
+function debouncedActualizar() {
+  clearTimeout(_statsDebounce);
+  _statsDebounce = setTimeout(actualizarTodosLosContadores, 1000);
+}
+
+sb.channel('reports-realtime')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, payload => {
+    const r   = payload.new;
+    const key = r.created_at + '|' + r.origin_city + '|' + r.gender;
+
+    // Siempre releer contadores desde Supabase (fuente única de verdad)
+    debouncedActualizar();
+
+    // Feed y mapa solo para inserts recientes (últimos 2 min) — evita mostrar
+    // ficticias históricas que se insertan al cargar la página
+    const esReciente = (Date.now() - new Date(r.created_at).getTime()) < 2 * 60 * 1000;
+    if (_recentInserts.has(key)) {
+      _recentInserts.delete(key); // nuestro propio reporte: ya lo mostramos localmente
+    } else if (esReciente) {
+      drawArrow(r.origin_city, r.destination_city, r.gender);
+      pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
+    }
+  })
+  .subscribe();
+
+// ── INIT ─────────────────────────────────────────────────────
+async function init() {
+  taOrigin = createTypeahead('originInput', 'originDrop');
+  taDest   = createTypeahead('destInput',   'destDrop');
+
+  await insertarFicticiasPendientes();
+  await Promise.all([actualizarTodosLosContadores(), loadArrows()]);
+}
+
+init().catch(err => console.error('Init error:', err));
+</script>
+</body>
+</html>
