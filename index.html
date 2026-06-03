@@ -954,6 +954,138 @@
     }
     .cookie-reject:hover { border-color: var(--muted); color: var(--text); }
 
+    /* ── RANKING COMPLETO MODAL ── */
+    .rankfull-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(24,30,46,0.88);
+      backdrop-filter: blur(8px);
+      z-index: 3500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .rankfull-overlay.active { opacity: 1; pointer-events: all; }
+    .rankfull-box {
+      position: relative;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 34px 32px 24px;
+      width: 560px;
+      max-width: 95vw;
+      max-height: 84vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(14px);
+      transition: transform 0.3s ease;
+    }
+    .rankfull-overlay.active .rankfull-box { transform: translateY(0); }
+    .rankfull-close {
+      position: absolute;
+      top: 14px; right: 18px;
+      background: none; border: none;
+      color: var(--muted); font-size: 18px;
+      cursor: pointer; transition: color 0.2s;
+    }
+    .rankfull-close:hover { color: var(--text); }
+    .rankfull-title {
+      font-size: 17px; font-weight: 700;
+      color: var(--text); margin-bottom: 16px;
+    }
+    .rankfull-search {
+      width: 100%;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 14px;
+    }
+    .rankfull-search:focus { border-color: var(--accent); }
+    .rankfull-search::placeholder { color: var(--muted); }
+    .rankfull-table-wrap {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+    .rankfull-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .rankfull-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-bg);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .rankfull-table thead th:not(:first-child) { text-align: right; }
+    .rankfull-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .rankfull-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .rankfull-table tbody tr.highlighted {
+      background: rgba(224,24,92,0.1);
+      border-color: rgba(224,24,92,0.3);
+    }
+    .rankfull-table td {
+      padding: 9px 10px;
+      color: var(--text);
+    }
+    .rankfull-table td:not(:first-child):not(:nth-child(2)) { text-align: right; }
+    .rankfull-pos {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      width: 32px;
+    }
+    .rankfull-pos.gold   { color: #FFD700; }
+    .rankfull-pos.silver { color: #B8BEC8; }
+    .rankfull-pos.bronze { color: #CD8B5A; }
+    .rankfull-city { font-weight: 600; }
+    .rankfull-num  { color: var(--accent); font-weight: 700; }
+    .rankfull-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 0;
+    }
+    .ranking-view-all {
+      display: block;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 4px 14px 14px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 0;
+      font-family: 'Poppins', sans-serif;
+      width: calc(100% - 28px);
+    }
+    .ranking-view-all:hover { color: var(--text); border-color: var(--muted); }
+
     /* ── TOAST ── */
     .toast {
       position: fixed;
@@ -1070,6 +1202,9 @@
     <div class="section-title">Ciudades más activas</div>
     <div class="ranking-list" id="rankingList"></div>
 
+    <!-- 4b. Ver ranking completo -->
+    <button class="ranking-view-all" id="openRankFull">Ver ranking completo →</button>
+
     <!-- 5. Legend -->
     <div class="section-title">Leyenda</div>
     <div class="legend">
@@ -1157,36 +1292,9 @@
         <div class="field-error" id="errDest">Selecciona el municipio de destino</div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="emailInput">Tu email (o el secundario que uses para estas cosas)</label>
-        <input type="email" id="emailInput" placeholder="tu@email.com" autocomplete="email"/>
-        <div class="field-error" id="errEmail">Introduce un email válido</div>
-      </div>
-
       <button type="submit" class="submit-btn" id="submitBtn">Confirmar reporte</button>
-      <button type="button" onclick="showLoginMsg(true)" style="display:block;width:100%;margin-top:10px;background:none;border:none;color:var(--muted);font-family:Poppins,sans-serif;font-size:11px;cursor:pointer;text-align:center;">
-        ¿Ya tienes cuenta? Inicia sesión →
-      </button>
 
     </form>
-
-    <!-- Mensaje pendiente tras enviar magic link -->
-    <div id="pendingMsg" style="display:none;text-align:center;padding:10px 0 4px">
-      <div style="font-size:42px;margin-bottom:16px">📨</div>
-      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px">
-        Revisa tu bandeja de entrada
-      </div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:6px">
-        Te hemos mandado un enlace secreto al correo que escribiste.<br>
-        Ábrelo y tu reporte quedará registrado solo.
-      </p>
-      <p style="font-size:11px;color:var(--muted);opacity:0.65;margin-bottom:24px">
-        (Si no lo ves en un minuto, mira la carpeta de spam)
-      </p>
-      <button class="submit-btn" onclick="closeModal()" style="max-width:200px;margin:0 auto;display:block">
-        Entendido
-      </button>
-    </div>
 
     <!-- Mensaje de límite diario -->
     <div id="limitMsg" style="display:none;text-align:center;padding:10px 0 4px">
@@ -1200,24 +1308,6 @@
       </p>
       <button class="submit-btn" onclick="closeModal()" style="max-width:200px;margin:0 auto;display:block">
         Entendido
-      </button>
-    </div>
-
-    <!-- Inicio de sesión para usuarios ya registrados -->
-    <div id="loginMsg" style="display:none;text-align:center;padding:10px 0 4px">
-      <div style="font-size:42px;margin-bottom:16px">🔑</div>
-      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px">
-        ¿Ya tienes cuenta?
-      </div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:18px">
-        Escribe tu email y te mandamos un enlace para entrar directamente.
-      </p>
-      <input type="email" id="loginEmailInput" placeholder="tu@email.com" autocomplete="email"
-        style="width:100%;margin-bottom:12px"/>
-      <div class="field-error" id="errLoginEmail" style="margin-bottom:10px">Introduce un email válido</div>
-      <button class="submit-btn" id="loginSendBtn">Enviar enlace</button>
-      <button onclick="showLoginMsg(false)" style="display:block;margin:12px auto 0;background:none;border:none;color:var(--muted);font-family:Poppins,sans-serif;font-size:12px;cursor:pointer;">
-        ← Volver al formulario
       </button>
     </div>
 
@@ -1273,6 +1363,31 @@
 </div>
 
 <!-- ════════════════════════════════════════
+     RANKING COMPLETO MODAL
+════════════════════════════════════════ -->
+<div class="rankfull-overlay" id="rankfullOverlay">
+  <div class="rankfull-box">
+    <button class="rankfull-close" id="rankfullClose">✕</button>
+    <div class="rankfull-title">Ranking completo de municipios</div>
+    <input type="text" class="rankfull-search" id="rankfullSearch" placeholder="Busca tu municipio y ve en qué puesto está…" autocomplete="off"/>
+    <div class="rankfull-table-wrap">
+      <table class="rankfull-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Municipio</th>
+            <th>Total</th>
+            <th>Semana</th>
+            <th>Hoy</th>
+          </tr>
+        </thead>
+        <tbody id="rankfullBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
      LEGAL MODAL
 ════════════════════════════════════════ -->
 <div class="legal-overlay" id="legalOverlay">
@@ -1291,13 +1406,12 @@
 
   <h3>Datos que recogemos</h3>
   <ul>
-    <li>Dirección de correo electrónico (solo al enviar un reporte, para verificar que eres una persona real y evitar spam).</li>
     <li>Ciudad de origen y destino del reporte (datos anonimizados, sin geolocalización precisa del usuario).</li>
     <li>Datos técnicos de navegación (dirección IP, tipo de navegador, páginas visitadas) a través de cookies de Google AdSense cuando el usuario ha dado su consentimiento.</li>
   </ul>
 
   <h3>Finalidad y base jurídica</h3>
-  <p>El email se recoge únicamente para verificar el reporte y evitar abusos (interés legítimo, art. 6.1.f RGPD). No se usa para enviar publicidad ni se comparte con terceros salvo los indicados en el apartado de cookies.</p>
+  <p>Los reportes son completamente anónimos. No se recogen datos personales identificativos al enviar un reporte. El tratamiento de datos de navegación se basa en el consentimiento del usuario (art. 6.1.a RGPD) para las cookies publicitarias.</p>
 
   <h3>Cookies</h3>
   <p>Este sitio utiliza dos tipos de cookies:</p>
@@ -2325,13 +2439,6 @@ function hasReportedToday() {
   return new Date(last).toDateString() === new Date().toDateString();
 }
 
-function showLoginMsg(show) {
-  document.getElementById('notifyForm').style.display     = show ? 'none' : '';
-  document.getElementById('loginMsg').style.display       = show ? 'block' : 'none';
-  document.getElementById('limitMsg').style.display       = 'none';
-  document.getElementById('pendingMsg').style.display     = 'none';
-}
-
 document.getElementById('notifyBtn').addEventListener('click', () => {
   _gender = null;
   document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
@@ -2339,9 +2446,6 @@ document.getElementById('notifyBtn').addEventListener('click', () => {
   document.querySelectorAll('.field-error').forEach(e => e.style.display = 'none');
   taOrigin.reset();
   taDest.reset();
-  document.getElementById('pendingMsg').style.display = 'none';
-  document.getElementById('loginMsg').style.display   = 'none';
-
   if (hasReportedToday()) {
     document.getElementById('notifyForm').style.display = 'none';
     document.getElementById('limitMsg').style.display   = 'block';
@@ -2360,34 +2464,10 @@ document.getElementById('modalOverlay').addEventListener('click', e => {
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('active');
   document.getElementById('notifyForm').style.display  = '';
-  document.getElementById('pendingMsg').style.display  = 'none';
   document.getElementById('limitMsg').style.display    = 'none';
-  document.getElementById('loginMsg').style.display    = 'none';
-  // Resetear género al cerrar para que nunca quede cacheado
   _gender = null;
   document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
 }
-
-// Botón de inicio de sesión
-document.getElementById('loginSendBtn').addEventListener('click', async () => {
-  const email = document.getElementById('loginEmailInput').value.trim();
-  const errEl = document.getElementById('errLoginEmail');
-  errEl.style.display = 'none';
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errEl.style.display = 'block'; return;
-  }
-  const btn = document.getElementById('loginSendBtn');
-  btn.disabled = true; btn.textContent = 'Enviando…';
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.origin + window.location.pathname, shouldCreateUser: false },
-  });
-  btn.disabled = false; btn.textContent = 'Enviar enlace';
-  if (error) { errEl.textContent = 'No pudimos enviar el enlace. Inténtalo de nuevo.'; errEl.style.display = 'block'; return; }
-  document.getElementById('loginMsg').style.display = 'none';
-  document.getElementById('pendingMsg').style.display = 'block';
-  document.getElementById('notifyForm').style.display = 'none';
-});
 
 document.querySelectorAll('.gender-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2552,58 +2632,21 @@ document.getElementById('notifyForm').addEventListener('submit', async e => {
 
   if (!_gender || !['m','f','gm','gf'].includes(_gender)) show('errGender');
   const originSel = taOrigin.get();
-  if (!originSel)                                           show('errOrigin');
+  if (!originSel) show('errOrigin');
   const destSel   = taDest.get();
-  if (!destSel)                                             show('errDest');
-  const email = document.getElementById('emailInput').value.trim();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) show('errEmail');
+  if (!destSel)   show('errDest');
   if (!ok) return;
 
   const btn = document.getElementById('submitBtn');
   btn.disabled    = true;
   btn.textContent = 'Enviando…';
 
-  // Comprobar si el usuario ya está verificado
-  const { data: sessionData } = await sb.auth.getSession();
-  const isVerified = !!(sessionData && sessionData.session);
-
-  if (isVerified) {
-    const saved = await submitReport(_gender, originSel, destSel);
-    btn.disabled    = false;
-    btn.textContent = 'Confirmar reporte';
-    if (!saved) { alert('Error al enviar el reporte. Inténtalo de nuevo.'); return; }
-    closeModal();
-    showToast('¡Infidelidad registrada!');
-    return;
-  }
-
-  // Guardar reporte pendiente en localStorage hasta que el usuario verifique
-  localStorage.setItem('im_pending', JSON.stringify({
-    gender: _gender,
-    origin: originSel,
-    dest:   destSel,
-  }));
-
-  const { error: otpError } = await sb.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: window.location.origin + window.location.pathname,
-      shouldCreateUser: true,
-    },
-  });
-
+  const saved = await submitReport(_gender, originSel, destSel);
   btn.disabled    = false;
   btn.textContent = 'Confirmar reporte';
-
-  if (otpError) {
-    console.error('OTP error:', otpError);
-    alert('No pudimos enviar el enlace. Comprueba el email e inténtalo de nuevo.');
-    return;
-  }
-
-  // Mostrar mensaje de espera en lugar del formulario
-  document.getElementById('notifyForm').style.display = 'none';
-  document.getElementById('pendingMsg').style.display = 'block';
+  if (!saved) { alert('Error al enviar el reporte. Inténtalo de nuevo.'); return; }
+  closeModal();
+  showToast('¡Infidelidad registrada!');
 });
 
 function showToast(msg) {
@@ -2612,6 +2655,69 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3600);
 }
+
+// ── RANKING COMPLETO ─────────────────────────────────────────
+(function() {
+  let _allRows = []; // [{pos, city, total, week, today}]
+
+  function buildRows() {
+    return Object.entries(_rankData)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([city, d], i) => ({ pos: i + 1, city, total: d.total, week: d.week, today: d.today }));
+  }
+
+  function posClass(pos) {
+    if (pos === 1) return 'gold';
+    if (pos === 2) return 'silver';
+    if (pos === 3) return 'bronze';
+    return '';
+  }
+
+  function renderRows(rows, highlight) {
+    const tbody = document.getElementById('rankfullBody');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="rankfull-empty">No hay datos todavía.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r => {
+      const hl = highlight && r.city.toLowerCase().includes(highlight) ? ' highlighted' : '';
+      return `<tr class="${hl}">
+        <td class="rankfull-pos ${posClass(r.pos)}">${r.pos}</td>
+        <td class="rankfull-city">${r.city}</td>
+        <td class="rankfull-num">${r.total}</td>
+        <td class="rankfull-num">${r.week}</td>
+        <td class="rankfull-num">${r.today}</td>
+      </tr>`;
+    }).join('');
+    // Scroll automático a la primera coincidencia
+    if (highlight) {
+      const row = tbody.querySelector('.highlighted');
+      if (row) setTimeout(() => row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
+    }
+  }
+
+  function openRankFull() {
+    _allRows = buildRows();
+    renderRows(_allRows, '');
+    document.getElementById('rankfullSearch').value = '';
+    document.getElementById('rankfullOverlay').classList.add('active');
+  }
+
+  document.getElementById('openRankFull').addEventListener('click', openRankFull);
+  document.getElementById('rankfullClose').addEventListener('click', () => {
+    document.getElementById('rankfullOverlay').classList.remove('active');
+  });
+  document.getElementById('rankfullOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) document.getElementById('rankfullOverlay').classList.remove('active');
+  });
+
+  document.getElementById('rankfullSearch').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) { renderRows(_allRows, ''); return; }
+    const filtered = _allRows.filter(r => r.city.toLowerCase().includes(q));
+    renderRows(filtered.length ? filtered : _allRows, q);
+  });
+})();
 
 // ── HISTORY MODAL ────────────────────────────────────────────
 (function() {
@@ -2799,20 +2905,6 @@ sb.channel('reports-realtime')
 async function init() {
   taOrigin = createTypeahead('originInput', 'originDrop');
   taDest   = createTypeahead('destInput',   'destDrop');
-
-  // Listener de magic link: cuando el usuario verifica, guardamos el reporte pendiente
-  sb.auth.onAuthStateChange(async (event) => {
-    if (event === 'SIGNED_IN') {
-      const raw = localStorage.getItem('im_pending');
-      if (!raw) return;
-      try {
-        const data = JSON.parse(raw);
-        localStorage.removeItem('im_pending');
-        const saved = await submitReport(data.gender, data.origin, data.dest);
-        if (saved) showToast('¡Confirmado! Tu reporte ha quedado registrado 🎉');
-      } catch (err) { console.error('Error al guardar reporte pendiente:', err); }
-    }
-  });
 
   await insertarFicticiasPendientes();
   await Promise.all([actualizarTodosLosContadores(), loadArrows()]);
