@@ -2620,6 +2620,7 @@ async function submitReport(gender, originSel, destSel) {
   _recentInserts.add(_key);
   setTimeout(() => _recentInserts.delete(_key), 10000);
   drawArrow(originSel.name, destSel.name, gender);
+  pushFeedMsg(makeAlert(originSel.name, destSel.name, gender), gender);
   bumpStats(gender, _now, originSel.name);
 
   _arrowPool.push({ origin_city: originSel.name, destination_city: destSel.name, gender });
