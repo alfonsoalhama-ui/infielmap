@@ -2297,7 +2297,8 @@ async function loadArrows() {
     .limit(60);
 
   if (recent && recent.length) {
-    // Mostrar los 5 más recientes en el feed con animación escalonada
+    recent.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Mostrar los 5 más recientes en el feed con animación escalonada (oldest→newest para que newest quede arriba)
     recent.slice(0, 5).reverse().forEach((r, i) => setTimeout(() => {
       drawArrow(r.origin_city, r.destination_city, r.gender);
       pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
