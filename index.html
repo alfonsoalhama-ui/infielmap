@@ -2078,10 +2078,7 @@ function startFicticiaLoop() {
         confirmed_count:  0,
         is_confirmed:     false,
       });
-      if (error) {
-        console.error('[InfielMap] Error al guardar ficticia:', JSON.stringify(error));
-      } else {
-        console.log('[InfielMap] Ficticia guardada OK:', origin.name, gender);
+      if (!error) {
         const key = insertTime + '|' + origin.name + '|' + gender;
         _recentInserts.add(key);
         setTimeout(() => _recentInserts.delete(key), 10000);
