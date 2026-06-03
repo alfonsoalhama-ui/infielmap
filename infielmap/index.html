@@ -2377,6 +2377,26 @@ async function insertarFicticiasPendientes() {
   }
 }
 
+// ── HELPERS REST DIRECTOS (evita bugs del SDK CDN con .gte/.order) ──────────
+const _SB_HEADERS = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
+async function sbRestCount(filter) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=id${filter}`, {
+      headers: { ..._SB_HEADERS, Prefer: 'count=exact', Range: '0-0' }
+    });
+    const range = res.headers.get('Content-Range');
+    return range ? parseInt(range.split('/')[1]) || 0 : 0;
+  } catch { return 0; }
+}
+
+async function sbRestSelect(params) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?${params}`, { headers: _SB_HEADERS });
+    return res.ok ? await res.json() : [];
+  } catch { return []; }
+}
+
 // ── STATS ────────────────────────────────────────────────────
 // Medianoche UTC de hoy — misma referencia en ranking e historial
 function getTodayUTC() {
@@ -2393,44 +2413,38 @@ async function actualizarTodosLosContadores() {
   const todayISO = getTodayUTC();
   const weekISO  = getWeekStartUTC();
 
-  const [totRes, todRes, wkRes, gnRes, cityRes] = await Promise.all([
-    sb.from('reports').select('*', { count: 'exact', head: true }),
-    sb.from('reports').select('*', { count: 'exact', head: true }).gte('created_at', todayISO),
-    sb.from('reports').select('*', { count: 'exact', head: true }).gte('created_at', weekISO),
-    sb.from('reports').select('gender'),
-    sb.from('reports').select('origin_city'),
+  const [total, todayCount, weekCount, gnData, cityData, wkCityData, todCityData] = await Promise.all([
+    sbRestCount(''),
+    sbRestCount(`&created_at=gte.${todayISO}`),
+    sbRestCount(`&created_at=gte.${weekISO}`),
+    sbRestSelect('select=gender&limit=10000'),
+    sbRestSelect('select=origin_city&limit=10000'),
+    sbRestSelect(`select=origin_city&created_at=gte.${weekISO}&limit=10000`),
+    sbRestSelect(`select=origin_city&created_at=gte.${todayISO}&limit=10000`),
   ]);
 
-  const total      = totRes.count || 0;
-  const todayCount = todRes.count || 0;
   _real24h = todayCount;
-
   _stats.total       = total;
   _stats.today       = todayCount;
-  _stats.week        = wkRes.count || 0;
-  _stats.totalGender = gnRes.data ? gnRes.data.length : 0;
-  _stats.male        = gnRes.data ? gnRes.data.filter(r => r.gender === 'm').length : 0;
-  _stats.female      = gnRes.data ? gnRes.data.filter(r => r.gender === 'f').length : 0;
+  _stats.week        = weekCount;
+  _stats.totalGender = gnData.length;
+  _stats.male        = gnData.filter(r => r.gender === 'm').length;
+  _stats.female      = gnData.filter(r => r.gender === 'f').length;
 
   _updateStatsDisplay();
 
-  if (cityRes.data && cityRes.data.length > 0) {
-    const [wkCityRes, todCityRes] = await Promise.all([
-      sb.from('reports').select('origin_city').gte('created_at', weekISO),
-      sb.from('reports').select('origin_city').gte('created_at', todayISO),
-    ]);
-
+  if (cityData.length > 0) {
     Object.keys(_rankData).forEach(k => delete _rankData[k]);
 
-    cityRes.data.forEach(r => {
+    cityData.forEach(r => {
       if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
       _rankData[r.origin_city].total++;
     });
-    if (wkCityRes.data) wkCityRes.data.forEach(r => {
+    wkCityData.forEach(r => {
       if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
       _rankData[r.origin_city].week++;
     });
-    if (todCityRes.data) todCityRes.data.forEach(r => {
+    todCityData.forEach(r => {
       if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
       _rankData[r.origin_city].today++;
     });
@@ -2738,33 +2752,27 @@ function showToast(msg) {
     const resultsEl = document.getElementById('histResults');
     resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
 
-    // Sin filtro de fecha → mostrar hoy (mismo corte UTC que el ranking)
-    const _minDate = dateVal ? null : getTodayUTC();
-
-    let query = sb.from('reports')
-      .select('origin_city,destination_city,gender,created_at');
+    // Construir parámetros REST directos (evita bug SDK CDN con .gte/.order)
+    let params = 'select=origin_city,destination_city,gender,created_at&order=created_at.desc&limit=500';
 
     if (dateVal) {
-      // Fecha seleccionada: medianoche UTC del día elegido
-      const d = new Date(dateVal);
-      const from = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-      const to   = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - 1);
-      query = query.gte('created_at', from.toISOString()).lte('created_at', to.toISOString());
+      const d    = new Date(dateVal);
+      const from = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+      const to   = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - 1).toISOString();
+      params += `&created_at=gte.${from}&created_at=lte.${to}`;
     } else {
-      query = query.gte('created_at', _minDate);
+      params += `&created_at=gte.${getTodayUTC()}`;
     }
     if (cityVal && cityVal.name) {
-      query = query.or(`origin_city.eq.${cityVal.name},destination_city.eq.${cityVal.name}`);
+      const city = encodeURIComponent(cityVal.name);
+      params += `&or=(origin_city.eq.${city},destination_city.eq.${city})`;
     }
-    query = query.order('created_at', { ascending: false }).limit(500);
 
-    const { data, error } = await query;
-    if (error || !data || data.length === 0) {
+    const data = await sbRestSelect(params);
+    if (!data || data.length === 0) {
       resultsEl.innerHTML = '<div class="hist-empty">No hay reportes para esos filtros.</div>';
       return;
     }
-
-    data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     resultsEl.innerHTML = data.map(r => {
       const color = GENDER_COLOR[r.gender] || '#5BA3E0';
