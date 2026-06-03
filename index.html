@@ -1932,9 +1932,18 @@ function _updateStatsDisplay() {
   }
 }
 
-// city = nombre de la ciudad de origen del reporte
-function bumpStats(gender, isToday = true, isWeek = true, city = null) {
-  // Contadores globales
+// Solo se llama con reportes REALES (Realtime o submit propio). Las ficticias nunca tocan esto.
+function bumpStats(gender, createdAt, city) {
+  const now      = new Date();
+  const todayISO = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const weekDate = new Date(now);
+  weekDate.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  weekDate.setHours(0,0,0,0);
+  const weekISO  = weekDate.toISOString();
+  const ts       = createdAt || new Date().toISOString();
+  const isToday  = ts >= todayISO;
+  const isWeek   = ts >= weekISO;
+
   _stats.total++;
   if (isToday) _stats.today++;
   if (isWeek)  _stats.week++;
@@ -1942,7 +1951,6 @@ function bumpStats(gender, isToday = true, isWeek = true, city = null) {
   if (gender === 'm') _stats.male++;
   if (gender === 'f') _stats.female++;
 
-  // Ranking de ciudad
   if (city) {
     if (!_rankData[city]) _rankData[city] = { total: 0, week: 0, today: 0 };
     _rankData[city].total++;
@@ -1951,13 +1959,6 @@ function bumpStats(gender, isToday = true, isWeek = true, city = null) {
     _renderRanking();
   }
 
-  // Persistir offset del día en localStorage
-  const _todayKey = new Date().toDateString();
-  const _prev = JSON.parse(localStorage.getItem('im_offset') || '{}');
-  const _n = (_prev.date === _todayKey ? (_prev.n || 0) : 0) + 1;
-  localStorage.setItem('im_offset', JSON.stringify({ date: _todayKey, n: _n }));
-
-  // Flash en el contador principal
   const cEl = document.getElementById('totalCounter');
   cEl.classList.add('bump');
   setTimeout(() => cEl.classList.remove('bump'), 600);
@@ -2062,7 +2063,7 @@ function startFicticiaLoop() {
     const { origin, dest, gender } = generateFicticia();
     drawArrow(origin.name, dest.name, gender);
     pushFeedMsg(makeAlert(origin.name, dest.name, gender), gender);
-    bumpStats(gender, true, true, origin.name);
+    // Las ficticias NO modifican contadores — son solo animaciones visuales
     setTimeout(tick, interval);
   }
   tick();
@@ -2227,16 +2228,6 @@ async function loadStats() {
   _stats.totalGender = gnRes.data ? gnRes.data.length : 0;
   _stats.male        = gnRes.data ? gnRes.data.filter(r => r.gender === 'm').length : 0;
   _stats.female      = gnRes.data ? gnRes.data.filter(r => r.gender === 'f').length : 0;
-
-  // Recuperar ficticias acumuladas hoy desde localStorage
-  const _todayKey = new Date().toDateString();
-  const _cached = JSON.parse(localStorage.getItem('im_offset') || '{}');
-  const _offset = (_cached.date === _todayKey) ? (_cached.n || 0) : 0;
-  if (_offset > 0) {
-    _stats.total += _offset;
-    _stats.today += _offset;
-    _stats.week  += _offset;
-  }
 
   _updateStatsDisplay();
 
@@ -2483,8 +2474,9 @@ async function submitReport(gender, originSel, destSel) {
   if (originSel.lat) CITY_MAP[originSel.name] = { name: originSel.name, lat: originSel.lat, lng: originSel.lng };
   if (destSel.lat)   CITY_MAP[destSel.name]   = { name: destSel.name,   lat: destSel.lat,   lng: destSel.lng };
 
+  _lastOwnCity = originSel.name; // para evitar doble conteo con Realtime
   drawArrow(originSel.name, destSel.name, gender);
-  bumpStats(gender, true, true, originSel.name);
+  bumpStats(gender, new Date().toISOString(), originSel.name);
 
   _arrowPool.push({ origin_city: originSel.name, destination_city: destSel.name, gender });
   localStorage.setItem('im_last_report', new Date().toISOString());
@@ -2705,6 +2697,24 @@ document.getElementById('legalOverlay').addEventListener('click', e => {
     hideBanner();
   });
 })();
+
+// ── SUPABASE REALTIME ─────────────────────────────────────────
+// Escucha inserts reales de cualquier usuario y actualiza todos los contadores
+sb.channel('reports-realtime')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, payload => {
+    const r = payload.new;
+    // Evitar doble conteo: submitReport ya llama bumpStats para el reporte propio
+    // Realtime puede llegar un instante después del submit propio — usamos una marca de tiempo
+    const diff = Date.now() - new Date(r.created_at).getTime();
+    if (diff < 5000 && r.origin_city === _lastOwnCity) return; // es el nuestro, ya contado
+    bumpStats(r.gender, r.created_at, r.origin_city);
+    // Mostrar también en el feed y el mapa
+    drawArrow(r.origin_city, r.destination_city, r.gender);
+    pushFeedMsg(makeAlert(r.origin_city, r.destination_city, r.gender), r.gender);
+  })
+  .subscribe();
+
+let _lastOwnCity = null; // se rellena en submitReport para evitar doble conteo
 
 // ── INIT ─────────────────────────────────────────────────────
 async function init() {
