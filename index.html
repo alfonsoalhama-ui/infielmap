@@ -2057,36 +2057,11 @@ function generateFicticia() {
   return { origin, dest, gender };
 }
 
-let _lastFicticiaInsert = 0; // timestamp local del último insert de ficticia en ESTA pestaña
-
 function startFicticiaLoop() {
-  async function tick() {
+  function tick() {
     const interval = getFicticiaIntervalMs();
     const { origin, dest, gender } = generateFicticia();
-
-    // Anti-duplicado LOCAL: solo esta pestaña inserta si no lo hizo en los últimos interval/2 ms
-    const now = Date.now();
-    if (now - _lastFicticiaInsert >= interval / 2) {
-      _lastFicticiaInsert = now;
-      const insertTime = new Date().toISOString();
-      const { error } = await sb.from('reports').insert({
-        gender,
-        origin_city:      origin.name,
-        destination_city: dest.name,
-        is_celebrity:     false,
-        celebrity_type:   null,
-        confirmed_count:  0,
-        is_confirmed:     false,
-      });
-      if (!error) {
-        const key = insertTime + '|' + origin.name + '|' + gender;
-        _recentInserts.add(key);
-        setTimeout(() => _recentInserts.delete(key), 10000);
-        bumpStats(gender, insertTime, origin.name);
-      }
-    }
-
-    // La animación siempre se muestra
+    // Solo animación visual — el insert lo hace el cron job del servidor
     drawArrow(origin.name, dest.name, gender);
     pushFeedMsg(makeAlert(origin.name, dest.name, gender), gender);
     setTimeout(tick, interval);
