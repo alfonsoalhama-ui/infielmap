@@ -2446,13 +2446,9 @@ document.getElementById('notifyBtn').addEventListener('click', () => {
   document.querySelectorAll('.field-error').forEach(e => e.style.display = 'none');
   taOrigin.reset();
   taDest.reset();
-  if (hasReportedToday()) {
-    document.getElementById('notifyForm').style.display = 'none';
-    document.getElementById('limitMsg').style.display   = 'block';
-  } else {
-    document.getElementById('notifyForm').style.display = '';
-    document.getElementById('limitMsg').style.display   = 'none';
-  }
+  // LÍMITE DIARIO DESACTIVADO TEMPORALMENTE (reactivar antes de lanzar)
+  document.getElementById('notifyForm').style.display = '';
+  document.getElementById('limitMsg').style.display   = 'none';
 
   document.getElementById('modalOverlay').classList.add('active');
 });
@@ -2732,16 +2728,11 @@ function showToast(msg) {
     const resultsEl = document.getElementById('histResults');
     resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
 
-    const _maxDate = new Date().toISOString();
     // Sin filtro de fecha → mostrar hoy (mismo corte UTC que el ranking)
-    const _minDate = dateVal
-      ? new Date(Date.now() - 90 * 86400000).toISOString()
-      : getTodayUTC();
+    const _minDate = dateVal ? null : getTodayUTC();
 
     let query = sb.from('reports')
       .select('origin_city,destination_city,gender,created_at')
-      .lte('created_at', _maxDate)
-      .gte('created_at', _minDate)
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -2751,6 +2742,8 @@ function showToast(msg) {
       const from = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
       const to   = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - 1);
       query = query.gte('created_at', from.toISOString()).lte('created_at', to.toISOString());
+    } else {
+      query = query.gte('created_at', _minDate);
     }
     if (cityVal && cityVal.name) {
       query = query.or(`origin_city.eq.${cityVal.name},destination_city.eq.${cityVal.name}`);
