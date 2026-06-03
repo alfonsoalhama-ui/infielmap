@@ -108,29 +108,31 @@
       text-transform: uppercase;
     }
 
-    /* ── MAIN LAYOUT ── */
-    .app-layout {
+    /* ── LEFT PANEL ── siempre fixed, fuera del flujo de app-layout */
+    .left-panel {
       position: fixed;
       top: 60px;
-      left: 0; right: 0; bottom: 28px;
-      display: flex;
-    }
-
-    /* ── LEFT PANEL ── */
-    .left-panel {
+      left: 0;
+      bottom: 28px;
       width: 300px;
-      height: 100%;
       background: var(--panel-bg);
       border-right: 1px solid var(--border);
       overflow-y: auto;
-      overflow-x: hidden;
-      flex-shrink: 0;
-      z-index: 500;
+      overflow-x: visible;
+      z-index: 600;
       scrollbar-width: thin;
       scrollbar-color: var(--muted) transparent;
     }
     .left-panel::-webkit-scrollbar { width: 3px; }
     .left-panel::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+    /* ── MAIN LAYOUT ── */
+    .app-layout {
+      position: fixed;
+      top: 60px;
+      left: 300px; right: 0; bottom: 28px;
+      display: flex;
+    }
 
     /* ── LIVE FEED ── */
     .live-alert {
@@ -1020,13 +1022,8 @@
   <div class="ad-inner-728">728 × 90</div>
 </div>
 
-<!-- ════════════════════════════════════════
-     MAIN LAYOUT
-════════════════════════════════════════ -->
-<div class="app-layout">
-
-  <!-- ── LEFT PANEL ── -->
-  <aside class="left-panel">
+<!-- ── LEFT PANEL ── (fuera de app-layout para que z-index funcione correctamente) -->
+<aside class="left-panel">
 
     <!-- 1. Live feed -->
     <div class="live-alert">
@@ -1098,9 +1095,11 @@
 
   </aside>
 
-  <!-- ── MAP ── -->
+<!-- ════════════════════════════════════════
+     MAIN LAYOUT
+════════════════════════════════════════ -->
+<div class="app-layout">
   <div id="map"></div>
-
 </div>
 
 <!-- ════════════════════════════════════════
