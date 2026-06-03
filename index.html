@@ -2057,19 +2057,17 @@ function generateFicticia() {
   return { origin, dest, gender };
 }
 
+let _lastFicticiaInsert = 0; // timestamp local del último insert de ficticia en ESTA pestaña
+
 function startFicticiaLoop() {
   async function tick() {
     const interval = getFicticiaIntervalMs();
     const { origin, dest, gender } = generateFicticia();
 
-    // Guardar ficticia en Supabase para que cuente en todos los contadores
-    // Comprobación anti-duplicado: si ya se insertó una en los últimos (interval/2) ms, saltar
-    const since = new Date(Date.now() - interval / 2).toISOString();
-    const { count } = await sb.from('reports')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', since);
-
-    if (!count || count === 0) {
+    // Anti-duplicado LOCAL: solo esta pestaña inserta si no lo hizo en los últimos interval/2 ms
+    const now = Date.now();
+    if (now - _lastFicticiaInsert >= interval / 2) {
+      _lastFicticiaInsert = now;
       const insertTime = new Date().toISOString();
       const { error } = await sb.from('reports').insert({
         gender,
@@ -2080,7 +2078,6 @@ function startFicticiaLoop() {
         is_confirmed:     false,
       });
       if (!error) {
-        // Marcar como nuestro para que Realtime no lo cuente dos veces
         const key = insertTime + '|' + origin.name + '|' + gender;
         _recentInserts.add(key);
         setTimeout(() => _recentInserts.delete(key), 10000);
@@ -2088,7 +2085,7 @@ function startFicticiaLoop() {
       }
     }
 
-    // La animación siempre se muestra, haya insertado o no
+    // La animación siempre se muestra
     drawArrow(origin.name, dest.name, gender);
     pushFeedMsg(makeAlert(origin.name, dest.name, gender), gender);
     setTimeout(tick, interval);
