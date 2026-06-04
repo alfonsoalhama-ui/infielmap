@@ -62,24 +62,29 @@
     .logo-text .infiel { color: var(--text); }
     .logo-text .mapword { color: var(--muted); font-weight: 600; }
 
-    .total-counter {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      font-size: 12px;
-      color: var(--muted);
-      letter-spacing: 0;
+    .header-search {
+      position: relative;
+      width: 240px;
     }
-    #totalCounter {
+    .header-search input {
+      width: 100%;
+      padding: 7px 13px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text);
       font-family: 'Poppins', sans-serif;
-      font-size: 22px;
-      color: var(--accent);
-      font-weight: 700;
-      min-width: 64px;
-      text-align: right;
-      transition: color 0.4s;
+      font-size: 11px;
+      outline: none;
+      transition: border-color 0.2s;
     }
-    #totalCounter.bump { color: #fff; }
+    .header-search input::placeholder { color: var(--muted); }
+    .header-search input:focus { border-color: var(--accent); }
+    .header-search .ta-dropdown {
+      top: calc(100% + 4px);
+      border-radius: 8px;
+      font-size: 12px;
+    }
 
     /* ── AD BANNER ── */
     .ad-banner {
@@ -1069,9 +1074,9 @@
     <div class="logo-text"><span class="infiel">Infielmap</span><span class="mapword" style="font-size:16px;opacity:0.6">.es</span></div>
   </div>
 
-  <div class="total-counter">
-    <span>reportes registrados</span>
-    <span id="totalCounter">—</span>
+  <div class="header-search">
+    <input type="text" id="headerCityInput" placeholder="consulta el golfeo en tu municipio" autocomplete="off"/>
+    <div class="ta-dropdown" id="headerCityDrop"></div>
   </div>
 </header>
 <div class="panel-backdrop" id="panelBackdrop"></div>
@@ -1953,7 +1958,6 @@ function _renderRanking() {
 
 function _updateStatsDisplay() {
   const fmt = n => n.toLocaleString('es-ES');
-  document.getElementById('totalCounter').textContent = fmt(_stats.total);
   document.getElementById('statToday').textContent    = fmt(_stats.today);
   document.getElementById('statWeek').textContent     = fmt(_stats.week);
   const n = _stats.totalGender;
@@ -1990,9 +1994,6 @@ function bumpStats(gender, createdAt, city) {
     _renderRanking();
   }
 
-  const cEl = document.getElementById('totalCounter');
-  cEl.classList.add('bump');
-  setTimeout(() => cEl.classList.remove('bump'), 600);
   _updateStatsDisplay();
 }
 
@@ -2488,7 +2489,7 @@ async function searchMunicipios(q) {
   } catch { return []; }
 }
 
-function createTypeahead(inputId, dropId) {
+function createTypeahead(inputId, dropId, opts = {}) {
   const input    = document.getElementById(inputId);
   const dropdown = document.getElementById(dropId);
   let timer      = null;
@@ -2537,6 +2538,7 @@ function createTypeahead(inputId, dropId) {
     input.value = r.name;
     selected    = r;
     dropdown.classList.remove('open');
+    if (typeof opts.onSelect === 'function') opts.onSelect(r);
   });
 
   input.addEventListener('blur', () => {
@@ -2710,13 +2712,15 @@ function showToast(msg) {
   let taHistCity;
 
   async function runHistSearch() {
-    const cityVal   = taHistCity ? taHistCity.get() : null;
-    const resultsEl = document.getElementById('histResults');
+    const cityVal    = taHistCity ? taHistCity.get() : null;
+    const cityText   = document.getElementById('histCityInput').value.trim();
+    const cityName   = (cityVal && cityVal.name) ? cityVal.name : cityText;
+    const resultsEl  = document.getElementById('histResults');
     resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
 
     let params = 'select=origin_city,destination_city,gender,created_at&is_fake=not.is.true&order=created_at.desc&limit=200';
-    if (cityVal && cityVal.name) {
-      const city = encodeURIComponent(cityVal.name);
+    if (cityName) {
+      const city = encodeURIComponent(cityName);
       params += `&or=(origin_city.eq.${city},destination_city.eq.${city})`;
     }
 
@@ -2743,13 +2747,17 @@ function showToast(msg) {
     }).join('');
   }
 
-  function openHistory() {
+  function openHistory(cityName) {
     document.getElementById('histOverlay').classList.add('active');
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
     }
+    if (cityName) {
+      document.getElementById('histCityInput').value = cityName;
+    }
     runHistSearch();
   }
+  window._openHistory = openHistory;
   function closeHistory() {
     document.getElementById('histOverlay').classList.remove('active');
   }
@@ -2760,6 +2768,13 @@ function showToast(msg) {
   });
 
   document.getElementById('histSearchBtn').addEventListener('click', runHistSearch);
+})();
+
+// ── BUSCADOR DE CIUDAD EN HEADER ─────────────────────────────
+(function() {
+  createTypeahead('headerCityInput', 'headerCityDrop', {
+    onSelect: city => window._openHistory && window._openHistory(city.name),
+  });
 })();
 
 // ── MOBILE PANEL ─────────────────────────────────────────────
