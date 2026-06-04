@@ -2661,6 +2661,7 @@ let taOrigin, taDest;
 
 // ── SUBMIT REPORT (función reutilizable) ─────────────────────
 async function submitReport(gender, originSel, destSel) {
+  const _now = new Date().toISOString();
   const { error } = await sb.from('reports').insert({
     gender,
     origin_city:      originSel.name,
@@ -2669,14 +2670,12 @@ async function submitReport(gender, originSel, destSel) {
     is_celebrity:     false,
     confirmed_count:  0,
     is_confirmed:     false,
-    created_at:       new Date().toISOString(),
+    created_at:       _now,
   });
   if (error) { console.error('Supabase insert error:', error); return false; }
 
   if (originSel.lat) CITY_MAP[originSel.name] = { name: originSel.name, lat: originSel.lat, lng: originSel.lng };
   if (destSel.lat)   CITY_MAP[destSel.name]   = { name: destSel.name,   lat: destSel.lat,   lng: destSel.lng };
-
-  const _now = new Date().toISOString();
   const _key = _now + '|' + originSel.name + '|' + gender;
   _recentInserts.add(_key);
   setTimeout(() => _recentInserts.delete(_key), 10000);
