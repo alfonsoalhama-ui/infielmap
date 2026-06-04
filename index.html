@@ -2752,9 +2752,11 @@ function showToast(msg) {
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
     }
-    if (cityName) {
-      document.getElementById('histCityInput').value = cityName;
-    }
+    // Si viene del buscador del header, poner la ciudad; si no, limpiar
+    const input = document.getElementById('histCityInput');
+    input.value = cityName || '';
+    if (taHistCity) taHistCity.reset();
+    if (cityName) input.value = cityName; // restaurar tras el reset
     runHistSearch();
   }
   window._openHistory = openHistory;
