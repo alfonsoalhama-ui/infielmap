@@ -2173,11 +2173,29 @@ function generateFicticia() {
 
 function startFicticiaLoop() {
   function tick() {
-    const interval = getFicticiaIntervalMs();
+    const interval  = getFicticiaIntervalMs();
     const { origin, dest, gender } = generateFicticia();
-    // Solo animación visual — el insert lo hace el cron job del servidor
+    const createdAt = new Date().toISOString();
+    const key       = createdAt + '|' + origin.name + '|' + gender;
+
+    // Registrar antes del insert para que Realtime no duplique la animación
+    _recentInserts.add(key);
+    setTimeout(() => _recentInserts.delete(key), 10000);
+
     drawArrow(origin.name, dest.name, gender);
     pushFeedMsg(makeAlert(origin.name, dest.name, gender), gender);
+
+    sb.from('reports').insert({
+      gender,
+      origin_city:      origin.name,
+      destination_city: dest.name,
+      is_fake:          true,
+      is_celebrity:     false,
+      confirmed_count:  0,
+      is_confirmed:     false,
+      created_at:       createdAt,
+    });
+
     setTimeout(tick, interval);
   }
   tick();
