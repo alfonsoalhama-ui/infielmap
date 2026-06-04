@@ -2712,15 +2712,13 @@ function showToast(msg) {
   let taHistCity;
 
   async function runHistSearch() {
-    const cityVal    = taHistCity ? taHistCity.get() : null;
-    const cityText   = document.getElementById('histCityInput').value.trim();
-    const cityName   = (cityVal && cityVal.name) ? cityVal.name : cityText;
-    const resultsEl  = document.getElementById('histResults');
+    const cityVal   = taHistCity ? taHistCity.get() : null;
+    const resultsEl = document.getElementById('histResults');
     resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
 
     let params = 'select=origin_city,destination_city,gender,created_at&is_fake=not.is.true&order=created_at.desc&limit=200';
-    if (cityName) {
-      const city = encodeURIComponent(cityName);
+    if (cityVal && cityVal.name) {
+      const city = encodeURIComponent(cityVal.name);
       params += `&or=(origin_city.eq.${city},destination_city.eq.${city})`;
     }
 
@@ -2747,13 +2745,10 @@ function showToast(msg) {
     }).join('');
   }
 
-  function openHistory(cityName) {
+  function openHistory() {
     document.getElementById('histOverlay').classList.add('active');
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
-    }
-    if (cityName) {
-      document.getElementById('histCityInput').value = cityName;
     }
     runHistSearch();
   }
