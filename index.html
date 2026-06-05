@@ -2548,7 +2548,6 @@ function createTypeahead(inputId, dropId, opts = {}) {
 
   return {
     get:   ()  => selected,
-    set:   (r) => { selected = r; input.value = r ? r.name : ''; },
     reset: ()  => { input.value = ''; selected = null; dropdown.classList.remove('open'); },
   };
 }
@@ -2747,13 +2746,10 @@ function showToast(msg) {
     }).join('');
   }
 
-  function openHistory(cityName) {
+  function openHistory() {
     document.getElementById('histOverlay').classList.add('active');
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
-    }
-    if (cityName) {
-      taHistCity.set({ name: cityName, display: cityName });
     }
     runHistSearch();
   }
@@ -2772,8 +2768,46 @@ function showToast(msg) {
 
 // ── BUSCADOR DE CIUDAD EN HEADER ─────────────────────────────
 (function() {
+  const GENDER_COLOR = { m:'#5BA3E0', f:'#FF6BB5', gm:'#C77DFF', gf:'#C77DFF' };
+  const GENDER_LABEL = { m:'♂ Hombre', f:'♀ Mujer', gm:'🌈 Gay', gf:'🌈 Lesbiana' };
+
   createTypeahead('headerCityInput', 'headerCityDrop', {
-    onSelect: city => window._openHistory && window._openHistory(city.name),
+    onSelect: async city => {
+      // Abrir el panel del historial
+      document.getElementById('histOverlay').classList.add('active');
+
+      // Búsqueda propia — no usa nada del historial
+      const resultsEl = document.getElementById('histResults');
+      resultsEl.innerHTML = '<div class="hist-empty">Buscando…</div>';
+
+      const cityEnc = encodeURIComponent(city.name);
+      const params  = `select=origin_city,destination_city,gender,created_at&is_fake=not.is.true&order=created_at.desc&limit=200&or=(origin_city.eq.${cityEnc},destination_city.eq.${cityEnc})`;
+      const data    = await sbRestSelect(params);
+
+      // Si el usuario cerró el modal mientras cargaba, no pintar nada
+      if (!document.getElementById('histOverlay').classList.contains('active')) return;
+
+      if (!data || data.length === 0) {
+        resultsEl.innerHTML = '<div class="hist-empty">No hay reportes para este municipio.</div>';
+        return;
+      }
+
+      resultsEl.innerHTML = data.map(r => {
+        const color = GENDER_COLOR[r.gender] || '#5BA3E0';
+        const label = GENDER_LABEL[r.gender] || '';
+        const dt    = new Date(r.created_at);
+        const hour  = dt.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit', timeZone: 'Europe/Madrid' });
+        const day   = dt.toLocaleDateString('es-ES', { day:'numeric', month:'short', timeZone: 'Europe/Madrid' });
+        return `
+          <div class="hist-item">
+            <div class="hist-bar" style="background:${color}"></div>
+            <div class="hist-info">
+              <div class="hist-cities">${r.origin_city} → ${r.destination_city}</div>
+              <div class="hist-meta">${label} · ${day} · ${hour}</div>
+            </div>
+          </div>`;
+      }).join('');
+    },
   });
 })();
 
