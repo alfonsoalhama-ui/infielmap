@@ -1372,6 +1372,7 @@
      SCRIPTS
 ════════════════════════════════════════ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 'use strict';
@@ -1935,6 +1936,39 @@ const _stats = { total: 0, today: 0, week: 0, male: 0, female: 0, totalGender: 0
 // Ranking en memoria: { ciudad: { total, week, today } }
 const _rankData = {};
 
+// ── MAPA DE CALOR ────────────────────────────────────────────
+let _heatLayer = null;
+
+function _renderHeatmap() {
+  if (typeof L.heatLayer !== 'function') return;
+
+  const points = [];
+  for (const [cityName, data] of Object.entries(_rankData)) {
+    const city = CITY_MAP[cityName];
+    if (city && data.total > 0) {
+      // Escala logarítmica para que ciudades pequeñas sean visibles
+      points.push([city.lat, city.lng, Math.log(data.total + 1)]);
+    }
+  }
+  if (!points.length) return;
+
+  if (_heatLayer) {
+    _heatLayer.setLatLngs(points);
+  } else {
+    _heatLayer = L.heatLayer(points, {
+      radius:  28,
+      blur:    22,
+      maxZoom: 10,
+      gradient: {
+        0.0: 'rgba(224,24,92,0)',
+        0.3: 'rgba(224,24,92,0.55)',
+        0.6: 'rgba(255,80,40,0.75)',
+        1.0: 'rgba(255,220,80,0.9)',
+      },
+    }).addTo(map);
+  }
+}
+
 function _renderRanking() {
   const medals = ['gold','silver','bronze','',''];
   const top5 = Object.entries(_rankData)
@@ -1954,6 +1988,7 @@ function _renderRanking() {
       </div>
     </div>
   `).join('');
+  _renderHeatmap();
 }
 
 function _updateStatsDisplay() {
