@@ -2330,11 +2330,12 @@ const _SB_HEADERS = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABA
 
 async function sbRestCount(filter) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=id${filter}`, {
-      headers: { ..._SB_HEADERS, Prefer: 'count=exact', Range: '0-0' }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=count${filter}`, {
+      headers: _SB_HEADERS, cache: 'no-store'
     });
-    const range = res.headers.get('Content-Range');
-    return range ? parseInt(range.split('/')[1]) || 0 : 0;
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return parseInt(data[0]?.count ?? 0);
   } catch { return 0; }
 }
 
@@ -2547,6 +2548,7 @@ function createTypeahead(inputId, dropId, opts = {}) {
 
   return {
     get:   ()  => selected,
+    set:   (r) => { selected = r; input.value = r ? r.name : ''; },
     reset: ()  => { input.value = ''; selected = null; dropdown.classList.remove('open'); },
   };
 }
@@ -2745,10 +2747,13 @@ function showToast(msg) {
     }).join('');
   }
 
-  function openHistory() {
+  function openHistory(cityName) {
     document.getElementById('histOverlay').classList.add('active');
     if (!taHistCity) {
       taHistCity = createTypeahead('histCityInput', 'histCityDrop');
+    }
+    if (cityName) {
+      taHistCity.set({ name: cityName, display: cityName });
     }
     runHistSearch();
   }
