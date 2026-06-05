@@ -321,21 +321,19 @@
     }
     .rank-pill .rn { color: var(--accent); font-weight: 700; margin-right: 2px; }
 
-    /* ── LEGEND ── */
-    .legend { padding: 0 14px 14px; border-bottom: 1px solid var(--border); }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 7px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--muted);
+    /* ── FEED LGBTQ BAR ── */
+    .feed-msg.lgbtq {
+      border-left: none;
+      padding-left: 13px;
+      position: relative;
     }
-    .leg-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; opacity: 0.85; }
-    .leg-dot.male   { background: #5BA3E0; }
-    .leg-dot.female { background: #FF6BB5; }
-    .leg-dot.lgbtq  { background: linear-gradient(135deg,#FF0018,#FFA52C,#FFFF41,#008018,#0000F9,#86007D); }
+    .feed-msg.lgbtq::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: linear-gradient(to bottom,#FF0018,#FFA52C,#FFFF41,#008018,#0000F9,#86007D);
+    }
 
     /* ── AD RECT ── */
     .ad-rect-wrap { padding: 14px; }
@@ -1140,23 +1138,6 @@
 
     <!-- 4b. Ver ranking completo -->
     <button class="ranking-view-all" id="openRankFull">Ver ranking completo →</button>
-
-    <!-- 5. Legend -->
-    <div class="section-title">Leyenda</div>
-    <div class="legend">
-      <div class="legend-item">
-        <div class="leg-dot male"></div>
-        <span>♂ Hombre</span>
-      </div>
-      <div class="legend-item">
-        <div class="leg-dot female"></div>
-        <span>♀ Mujer</span>
-      </div>
-      <div class="legend-item">
-        <div class="leg-dot lgbtq"></div>
-        <span>🌈 LGBTQ+</span>
-      </div>
-    </div>
 
     <!-- AdSense 300×250 -->
     <div class="ad-rect-wrap" style="border-top:1px solid var(--border)">
@@ -2178,14 +2159,13 @@ function pushFeedMsg(text, gender) {
   const feed = document.getElementById('liveFeed');
   if (!feed) return;
 
-  const color = gender === 'f' ? '#FF6BB5'
-              : (gender === 'gm' || gender === 'gf') ? '#C77DFF'
-              : '#5BA3E0';
+  const isLGBTQ = gender === 'gm' || gender === 'gf';
+  const color   = gender === 'f' ? '#FF6BB5' : '#5BA3E0';
 
   // Nuevo mensaje entra por arriba
   const msg = document.createElement('div');
-  msg.className = 'feed-msg new';
-  msg.style.borderLeftColor = color;
+  msg.className = 'feed-msg new' + (isLGBTQ ? ' lgbtq' : '');
+  if (!isLGBTQ) msg.style.borderLeftColor = color;
   msg.textContent = text;
   feed.insertBefore(msg, feed.firstChild);
 
