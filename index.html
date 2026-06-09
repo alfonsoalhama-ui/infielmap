@@ -86,32 +86,6 @@
       font-size: 12px;
     }
 
-    /* ── AD BANNER ── */
-    .ad-banner {
-      position: fixed;
-      top: 60px;
-      left: 300px;
-      right: 0;
-      height: 90px;
-      background: rgba(24,30,46,0.95);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 998;
-    }
-    .ad-inner-728 {
-      width: 728px;
-      height: 90px;
-      border: 1px dashed rgba(237,233,224,0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 10px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
 
     /* ── LEFT PANEL ── siempre fixed, fuera del flujo de app-layout */
     .left-panel {
@@ -335,25 +309,10 @@
       background: linear-gradient(to bottom,#FF0018,#FFA52C,#FFFF41,#008018,#0000F9,#86007D);
     }
 
-    /* ── AD RECT ── */
-    .ad-rect-wrap { padding: 14px; }
-    .ad-inner-300 {
-      width: 100%;
-      height: 250px;
-      border: 1px dashed rgba(237,233,224,0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 10px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
 
     /* ── MAP ── */
     #map {
       flex: 1;
-      margin-top: 90px;
     }
 
     /* ── LEAFLET OVERRIDES ── */
@@ -885,8 +844,6 @@
 
       /* App layout ocupa toda la pantalla */
       .app-layout { left: 0 !important; }
-      .ad-banner { display: none; }
-      #map { margin-top: 0 !important; }
       .site-footer { left: 0; }
     }
 
@@ -1083,13 +1040,6 @@
 <div class="panel-backdrop" id="panelBackdrop"></div>
 <button id="panelToggleBtn" aria-label="Abrir/cerrar panel">☰</button>
 
-<!-- ════════════════════════════════════════
-     AD BANNER 728×90
-════════════════════════════════════════ -->
-<div class="ad-banner">
-  <!-- AdSense placeholder — replace with real ad code -->
-  <div class="ad-inner-728">728 × 90</div>
-</div>
 
 <!-- ── LEFT PANEL ── (fuera de app-layout para que z-index funcione correctamente) -->
 <aside class="left-panel">
@@ -1142,11 +1092,6 @@
     <!-- 4b. Ver ranking completo -->
     <button class="ranking-view-all" id="openRankFull">Ver ranking completo →</button>
 
-    <!-- AdSense 300×250 -->
-    <div class="ad-rect-wrap" style="border-top:1px solid var(--border)">
-      <!-- AdSense placeholder — replace with real ad code -->
-      <div class="ad-inner-300">300 × 250</div>
-    </div>
 
   </aside>
 
