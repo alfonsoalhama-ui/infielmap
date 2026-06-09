@@ -2423,6 +2423,30 @@ document.querySelectorAll('.gender-btn').forEach(btn => {
   });
 });
 
+// ── NORMALIZACIÓN DE NOMBRES DE CIUDAD ──────────────────────
+// Aliases para nombres cooficiales que difieren del castellano en CITY_MAP
+const _CITY_ALIASES = {
+  'alacant':                'Alicante',
+  'castello de la plana':   'Castellón de la Plana',
+  'alcoi':                  'Alcoy',
+  'elx':                    'Elche',
+  'bilbo':                  'Bilbao',
+  'donostia':               'San Sebastián',
+  'donostia-san sebastian': 'San Sebastián',
+  'gasteiz':                'Vitoria-Gasteiz',
+};
+
+function _normCity(name) {
+  if (CITY_MAP[name]) return name; // coincidencia exacta
+  const n = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const key = n(name);
+  if (_CITY_ALIASES[key]) return _CITY_ALIASES[key]; // alias cooficial
+  for (const k of Object.keys(CITY_MAP)) {           // coincidencia sin tildes
+    if (n(k) === key) return k;
+  }
+  return name; // ciudad no conocida — respetar el nombre de Photon
+}
+
 // ── TYPEAHEAD (Nominatim) ────────────────────────────────────
 async function searchMunicipios(q) {
   try {
@@ -2498,7 +2522,8 @@ function createTypeahead(inputId, dropId, opts = {}) {
     const item = e.target.closest('.ta-item');
     if (!item) return;
     e.preventDefault();
-    const r = dropdown._results[+item.dataset.idx];
+    const raw = dropdown._results[+item.dataset.idx];
+    const r   = { ...raw, name: _normCity(raw.name) };
     input.value = r.name;
     selected    = r;
     dropdown.classList.remove('open');
