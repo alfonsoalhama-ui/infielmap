@@ -31,8 +31,8 @@
       background: var(--bg);
       color: var(--text);
       font-family: 'Poppins', sans-serif;
-      overflow: hidden;
     }
+    body { overflow-y: auto; }
 
     /* ── HEADER ── */
     header {
@@ -81,6 +81,25 @@
     }
     #totalCounter.bump { color: #fff; }
 
+    /* ── HEADER SEARCH ── */
+    .header-search { position: relative; width: 250px; }
+    .header-search input {
+      width: 100%; padding: 7px 14px;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--text); font-family: 'Poppins', sans-serif;
+      font-size: 11px; outline: none; transition: border-color 0.2s;
+    }
+    .header-search input::placeholder { color: var(--muted); }
+    .header-search input:focus { border-color: var(--accent); }
+    .hdr-result {
+      display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      background: var(--panel-bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 14px; font-size: 12px; line-height: 1.5; z-index: 1200;
+    }
+    .hdr-result.show { display: block; }
+    .hdr-result .hdr-count { font-size: 18px; font-weight: 800; color: var(--accent); }
+    @media (max-width: 900px) { .header-search { display: none; } }
+
     /* ── AD BANNER ── */
     .ad-banner {
       position: fixed;
@@ -108,13 +127,22 @@
       text-transform: uppercase;
     }
 
-    /* ── LEFT PANEL ── siempre fixed, fuera del flujo de app-layout */
+    /* ── APP SHELL — contenedor de altura fija para mapa + panel ── */
+    .app-shell {
+      display: flex;
+      height: calc(100vh - 88px);
+      margin-top: 60px;
+      margin-bottom: 28px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── LEFT PANEL ── */
     .left-panel {
-      position: fixed;
-      top: 60px;
-      left: 0;
-      bottom: 28px;
+      position: relative;
+      flex-shrink: 0;
       width: 300px;
+      height: 100%;
       background: var(--panel-bg);
       border-right: 1px solid var(--border);
       overflow-y: auto;
@@ -128,9 +156,8 @@
 
     /* ── MAIN LAYOUT ── */
     .app-layout {
-      position: fixed;
-      top: 60px;
-      left: 300px; right: 0; bottom: 28px;
+      position: relative;
+      flex: 1;
       display: flex;
     }
 
@@ -350,7 +377,6 @@
     /* ── MAP ── */
     #map {
       flex: 1;
-      margin-top: 90px;
     }
 
     /* ── LEAFLET OVERRIDES ── */
@@ -865,11 +891,15 @@
     @media (max-width: 768px) {
       #panelToggleBtn { display: flex; }
 
-      /* Panel: fuera del flujo, fijo, empieza cerrado */
+      /* Shell ocupa toda la pantalla en móvil */
+      .app-shell { margin-top: 60px; margin-bottom: 28px; }
+
+      /* Panel: flotante encima del mapa, empieza cerrado */
       .left-panel {
-        position: fixed;
-        top: 60px; bottom: 28px; left: 0;
+        position: absolute;
+        top: 0; bottom: 0; left: 0;
         width: 280px;
+        height: 100%;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
         z-index: 600;
@@ -877,8 +907,6 @@
       }
       .left-panel.open { transform: translateX(0); }
 
-      /* App layout ocupa toda la pantalla */
-      .app-layout { left: 0 !important; }
       .ad-banner { display: none; }
       #map { margin-top: 0 !important; }
       .site-footer { left: 0; }
@@ -1138,6 +1166,12 @@
     <div class="logo-text"><span class="infiel">Infielmap</span><span class="mapword" style="font-size:16px;opacity:0.6">.es</span></div>
   </div>
 
+  <div class="header-search">
+    <input type="text" id="hdrSearchInput" placeholder="¿Hay golfeo en tu municipio?" autocomplete="off">
+    <div class="ta-dropdown" id="hdrSearchDrop"></div>
+    <div class="hdr-result" id="hdrResult"></div>
+  </div>
+
   <div class="total-counter">
     <span>reportes registrados</span>
     <span id="totalCounter">—</span>
@@ -1146,15 +1180,9 @@
 <div class="panel-backdrop" id="panelBackdrop"></div>
 <button id="panelToggleBtn" aria-label="Abrir/cerrar panel">☰</button>
 
-<!-- ════════════════════════════════════════
-     AD BANNER 728×90
-════════════════════════════════════════ -->
-<div class="ad-banner">
-  <!-- AdSense placeholder — replace with real ad code -->
-  <div class="ad-inner-728">728 × 90</div>
-</div>
 
-<!-- ── LEFT PANEL ── (fuera de app-layout para que z-index funcione correctamente) -->
+<div class="app-shell">
+<!-- ── LEFT PANEL ── -->
 <aside class="left-panel">
 
     <!-- 1. Live feed -->
@@ -1205,28 +1233,10 @@
     <!-- 4b. Ver ranking completo -->
     <button class="ranking-view-all" id="openRankFull">Ver ranking completo →</button>
 
-    <!-- 5. Legend -->
-    <div class="section-title">Leyenda</div>
-    <div class="legend">
-      <div class="legend-item">
-        <div class="leg-dot male"></div>
-        <span>♂ Hombre</span>
-      </div>
-      <div class="legend-item">
-        <div class="leg-dot female"></div>
-        <span>♀ Mujer</span>
-      </div>
-      <div class="legend-item">
-        <div class="leg-dot lgbtq"></div>
-        <span>🌈 LGBTQ+</span>
-      </div>
-    </div>
+    <!-- 4c. Ranking de profesiones -->
+    <div class="section-title" style="margin-top:6px;">Profesiones más pilladas</div>
+    <div class="ranking-list" id="profRankingList"></div>
 
-    <!-- AdSense 300×250 -->
-    <div class="ad-rect-wrap" style="border-top:1px solid var(--border)">
-      <!-- AdSense placeholder — replace with real ad code -->
-      <div class="ad-inner-300">300 × 250</div>
-    </div>
 
   </aside>
 
@@ -1236,6 +1246,7 @@
 <div class="app-layout">
   <div id="map"></div>
 </div>
+</div><!-- /.app-shell -->
 
 <!-- ════════════════════════════════════════
      NOTIFY MODAL
@@ -1290,6 +1301,41 @@
           <div class="ta-dropdown" id="destDrop"></div>
         </div>
         <div class="field-error" id="errDest">Selecciona el municipio de destino</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Profesión del infiel <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:var(--muted)">(opcional)</span></label>
+        <select id="professionSelect">
+          <option value="">Prefiero no decirlo</option>
+          <option>Comercial/Vendedor</option>
+          <option>Médico/Enfermero</option>
+          <option>Obrero/Técnico</option>
+          <option>Maestro/Profesor</option>
+          <option>Hostelería</option>
+          <option>Directivo/CEO</option>
+          <option>Policía/Militar</option>
+          <option>Abogado</option>
+          <option>Piloto/Azafata</option>
+          <option>Banca/Finanzas</option>
+          <option>Informático</option>
+          <option>Periodista/Medios</option>
+          <option>Cirujano/Urgencias</option>
+          <option>Comerciante</option>
+          <option>Conductor/Transporte</option>
+          <option>Deportista/Entrenador</option>
+          <option>Actor/Músico/DJ</option>
+          <option>Agente Inmobiliario</option>
+          <option>Recursos Humanos</option>
+          <option>Arquitecto/Ingeniero</option>
+          <option>Farmacéutico</option>
+          <option>Psicólogo/Terapeuta</option>
+          <option>Chef/Cocinero</option>
+          <option>Peluquero/Esteticista</option>
+          <option>Autónomo/Freelance</option>
+        </select>
+        <div style="margin-top:6px;font-size:10px;color:var(--muted);line-height:1.45;">
+          🔒 Por privacidad, la profesión solo se usa en el ranking global — nunca se vincula a un municipio concreto.
+        </div>
       </div>
 
       <button type="submit" class="submit-btn" id="submitBtn">Confirmar reporte</button>
@@ -1948,6 +1994,27 @@ const CITIES = Object.values(PROVINCE_CITIES).flat();
 const CITY_MAP = {};
 CITIES.forEach(c => { CITY_MAP[c.name] = c; });
 
+// ── NORMALIZACIÓN DE NOMBRES DE CIUDAD ──────────────────────
+const _CITY_ALIASES = {
+  'alacant':                'Alicante',
+  'castello de la plana':   'Castellón de la Plana',
+  'alcoi':                  'Alcoy',
+  'elx':                    'Elche',
+  'bilbo':                  'Bilbao',
+  'donostia':               'San Sebastián',
+  'donostia-san sebastian': 'San Sebastián',
+  'gasteiz':                'Vitoria-Gasteiz',
+};
+
+function _normCity(name) {
+  if (CITY_MAP[name]) return name;
+  const n = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const key = n(name);
+  if (_CITY_ALIASES[key]) return _CITY_ALIASES[key];
+  for (const k of Object.keys(CITY_MAP)) { if (n(k) === key) return k; }
+  return name;
+}
+
 // ── MAPA PROVINCIA → CC.AA. ──────────────────────────────────
 const PROVINCE_CA = {
   'Álava':'País Vasco','Guipúzcoa':'País Vasco','Vizcaya':'País Vasco',
@@ -2005,6 +2072,41 @@ const FICTICIAS_POOL = (function() {
   return pool;
 })();
 
+const PROFESSIONS = [
+  { name: 'Banquero',                 w: 15 },
+  { name: 'Piloto de avión',          w: 13 },
+  { name: 'Médico/Enfermero',         w: 12 },
+  { name: 'CEO de empresa',           w: 11 },
+  { name: 'Deportista',               w: 10 },
+  { name: 'Celebrity/Famoso',         w:  9 },
+  { name: 'Camarero/DJ',              w:  8 },
+  { name: 'Periodista',               w:  7 },
+  { name: 'Comercial/Vendedor',       w:  6 },
+  { name: 'Abogado',                  w:  5 },
+  { name: 'Policía/Militar',          w:  4 },
+  { name: 'Obrero/Técnico',           w:  3 },
+  { name: 'Maestro/Profesor',         w:  3 },
+  { name: 'Informático',              w:  2 },
+  { name: 'Conductor/Transporte',     w:  2 },
+  { name: 'Arquitecto/Ingeniero',     w:  2 },
+  { name: 'Agente Inmobiliario',      w:  2 },
+  { name: 'Recursos Humanos',         w:  1 },
+  { name: 'Farmacéutico',             w:  1 },
+  { name: 'Psicólogo/Terapeuta',      w:  1 },
+  { name: 'Chef/Cocinero',            w:  1 },
+  { name: 'Peluquero/Esteticista',    w:  1 },
+  { name: 'Autónomo/Freelance',       w:  1 },
+  { name: 'Comerciante',              w:  1 },
+  { name: 'Cirujano/Urgencias',       w:  1 },
+];
+
+function pickProfession() {
+  const total = PROFESSIONS.reduce((s, p) => s + p.w, 0);
+  let r = Math.random() * total;
+  for (const p of PROFESSIONS) { r -= p.w; if (r <= 0) return p.name; }
+  return PROFESSIONS[PROFESSIONS.length - 1].name;
+}
+
 let _real24h = 0; // se rellena en loadStats
 
 // ── STATS CACHE (para actualizaciones en tiempo real) ─────────
@@ -2012,6 +2114,7 @@ const _stats = { total: 0, today: 0, week: 0, male: 0, female: 0, totalGender: 0
 
 // Ranking en memoria: { ciudad: { total, week, today } }
 const _rankData = {};
+const _profData = {};
 
 function _renderRanking() {
   const medals = ['gold','silver','bronze','',''];
@@ -2034,6 +2137,25 @@ function _renderRanking() {
   `).join('');
 }
 
+function _renderProfRanking() {
+  const medals = ['gold','silver','bronze','',''];
+  const top5 = Object.entries(_profData).sort((a,b) => b[1].total - a[1].total).slice(0,5);
+  document.getElementById('profRankingList').innerHTML = top5.length
+    ? top5.map(([prof, d], i) => `
+      <div class="ranking-item">
+        <div class="rank-pos ${medals[i]}">${i+1}</div>
+        <div class="rank-body">
+          <div class="rank-city">${prof}</div>
+          <div class="rank-stats">
+            <span class="rank-pill"><span class="rn">${d.total}</span>total</span>
+            <span class="rank-pill"><span class="rn">${d.week}</span>sem</span>
+            <span class="rank-pill"><span class="rn">${d.today}</span>hoy</span>
+          </div>
+        </div>
+      </div>`).join('')
+    : '<div style="font-size:11px;color:var(--muted);padding:10px 14px;">Sin datos todavía</div>';
+}
+
 function _updateStatsDisplay() {
   const fmt = n => n.toLocaleString('es-ES');
   document.getElementById('totalCounter').textContent = fmt(_stats.total);
@@ -2041,13 +2163,14 @@ function _updateStatsDisplay() {
   document.getElementById('statWeek').textContent     = fmt(_stats.week);
   const n = _stats.totalGender;
   if (n > 0) {
-    document.getElementById('statMale').textContent   = Math.round(_stats.male   / n * 100) + '%';
-    document.getElementById('statFemale').textContent = Math.round(_stats.female / n * 100) + '%';
+    const mPct = Math.round(_stats.male / n * 100);
+    document.getElementById('statMale').textContent   = mPct + '%';
+    document.getElementById('statFemale').textContent = (100 - mPct) + '%';
   }
 }
 
 // Solo se llama con reportes REALES (Realtime o submit propio). Las ficticias nunca tocan esto.
-function bumpStats(gender, createdAt, city) {
+function bumpStats(gender, createdAt, city, profession) {
   const now      = new Date();
   const todayISO = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const weekDate = new Date(now);
@@ -2071,6 +2194,14 @@ function bumpStats(gender, createdAt, city) {
     if (isWeek)  _rankData[city].week++;
     if (isToday) _rankData[city].today++;
     _renderRanking();
+  }
+
+  if (profession) {
+    if (!_profData[profession]) _profData[profession] = { total: 0, week: 0, today: 0 };
+    _profData[profession].total++;
+    if (isWeek)  _profData[profession].week++;
+    if (isToday) _profData[profession].today++;
+    _renderProfRanking();
   }
 
   const cEl = document.getElementById('totalCounter');
@@ -2231,13 +2362,17 @@ function pushFeedMsg(text, gender) {
 }
 
 // ── MAP ─────────────────────────────────────────────────────
-const map = L.map('map', { attributionControl: true })
-  .setView([40.4, -3.7], 6);
+const map = L.map('map', {
+  attributionControl: true,
+  zoomSnap: 0.5,
+  minZoom: 5,
+}).setView([40.4, -3.7], 6);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
   subdomains: 'abcd',
   maxZoom: 19,
+  noWrap: true,
 }).addTo(map);
 
 // ── PULSOS ───────────────────────────────────────────────────
@@ -2359,6 +2494,7 @@ async function insertarFicticiasPendientes() {
       const ts = new Date(desde + fraction * (now - desde));
       rows.push({
         gender,
+        profession:       pickProfession(),
         origin_city:      origin.name,
         destination_city: dest.name,
         is_fake:          true,
@@ -2413,7 +2549,7 @@ async function actualizarTodosLosContadores() {
   const todayISO = getTodayUTC();
   const weekISO  = getWeekStartUTC();
 
-  const [total, todayCount, weekCount, gnData, cityData, wkCityData, todCityData] = await Promise.all([
+  const [total, todayCount, weekCount, gnData, cityData, wkCityData, todCityData, profData, wkProfData, todProfData] = await Promise.all([
     sbRestCount(''),
     sbRestCount(`&created_at=gte.${todayISO}`),
     sbRestCount(`&created_at=gte.${weekISO}`),
@@ -2421,6 +2557,9 @@ async function actualizarTodosLosContadores() {
     sbRestSelect('select=origin_city&limit=10000'),
     sbRestSelect(`select=origin_city&created_at=gte.${weekISO}&limit=10000`),
     sbRestSelect(`select=origin_city&created_at=gte.${todayISO}&limit=10000`),
+    sbRestSelect('select=profession&limit=10000'),
+    sbRestSelect(`select=profession&created_at=gte.${weekISO}&limit=10000`),
+    sbRestSelect(`select=profession&created_at=gte.${todayISO}&limit=10000`),
   ]);
 
   _real24h = todayCount;
@@ -2428,8 +2567,8 @@ async function actualizarTodosLosContadores() {
   _stats.today       = todayCount;
   _stats.week        = weekCount;
   _stats.totalGender = gnData.length;
-  _stats.male        = gnData.filter(r => r.gender === 'm').length;
-  _stats.female      = gnData.filter(r => r.gender === 'f').length;
+  _stats.male        = gnData.filter(r => r.gender === 'm' || r.gender === 'gm').length;
+  _stats.female      = gnData.filter(r => r.gender === 'f' || r.gender === 'gf').length;
 
   _updateStatsDisplay();
 
@@ -2451,6 +2590,24 @@ async function actualizarTodosLosContadores() {
 
     _renderRanking();
   }
+
+  Object.keys(_profData).forEach(k => delete _profData[k]);
+  profData.forEach(r => {
+    if (!r.profession) return;
+    if (!_profData[r.profession]) _profData[r.profession] = { total: 0, week: 0, today: 0 };
+    _profData[r.profession].total++;
+  });
+  wkProfData.forEach(r => {
+    if (!r.profession) return;
+    if (!_profData[r.profession]) _profData[r.profession] = { total: 0, week: 0, today: 0 };
+    _profData[r.profession].week++;
+  });
+  todProfData.forEach(r => {
+    if (!r.profession) return;
+    if (!_profData[r.profession]) _profData[r.profession] = { total: 0, week: 0, today: 0 };
+    _profData[r.profession].today++;
+  });
+  _renderProfRanking();
 }
 
 // ── MODAL ────────────────────────────────────────────────────
@@ -2486,6 +2643,7 @@ function closeModal() {
   document.getElementById('limitMsg').style.display    = 'none';
   _gender = null;
   document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('professionSelect').value = '';
 }
 
 document.querySelectorAll('.gender-btn').forEach(btn => {
@@ -2571,7 +2729,8 @@ function createTypeahead(inputId, dropId) {
     const item = e.target.closest('.ta-item');
     if (!item) return;
     e.preventDefault();
-    const r = dropdown._results[+item.dataset.idx];
+    const raw = dropdown._results[+item.dataset.idx];
+    const r   = { ...raw, name: _normCity(raw.name) };
     input.value = r.name;
     selected    = r;
     dropdown.classList.remove('open');
@@ -2615,9 +2774,10 @@ function setupCascades() {
 let taOrigin, taDest;
 
 // ── SUBMIT REPORT (función reutilizable) ─────────────────────
-async function submitReport(gender, originSel, destSel) {
+async function submitReport(gender, originSel, destSel, profession) {
   const { error } = await sb.from('reports').insert({
     gender,
+    profession: profession || null,
     origin_city:      originSel.name,
     destination_city: destSel.name,
     is_celebrity:     false,
@@ -2635,7 +2795,7 @@ async function submitReport(gender, originSel, destSel) {
   setTimeout(() => _recentInserts.delete(_key), 10000);
   drawArrow(originSel.name, destSel.name, gender);
   pushFeedMsg(makeAlert(originSel.name, destSel.name, gender), gender);
-  bumpStats(gender, _now, originSel.name);
+  bumpStats(gender, _now, originSel.name, profession);
 
   _arrowPool.push({ origin_city: originSel.name, destination_city: destSel.name, gender });
   localStorage.setItem('im_last_report', new Date().toISOString());
@@ -2661,7 +2821,8 @@ document.getElementById('notifyForm').addEventListener('submit', async e => {
   btn.disabled    = true;
   btn.textContent = 'Enviando…';
 
-  const saved = await submitReport(_gender, originSel, destSel);
+  const profession = document.getElementById('professionSelect').value || null;
+  const saved = await submitReport(_gender, originSel, destSel, profession);
   btn.disabled    = false;
   btn.textContent = 'Confirmar reporte';
   if (!saved) { alert('Error al enviar el reporte. Inténtalo de nuevo.'); return; }
@@ -2930,6 +3091,305 @@ async function init() {
 }
 
 init().catch(err => console.error('Init error:', err));
+
+// ── BUSCADOR DE CABECERA ──────────────────────────────────
+(function() {
+  const input  = document.getElementById('hdrSearchInput');
+  const drop   = document.getElementById('hdrSearchDrop');
+  const result = document.getElementById('hdrResult');
+  let timer;
+
+  // mover dropdown al body para evitar clipping del header
+  document.body.appendChild(drop);
+
+  function posDrop() {
+    const r = input.getBoundingClientRect();
+    drop.style.top   = (r.bottom + window.pageYOffset + 4) + 'px';
+    drop.style.left  = r.left + 'px';
+    drop.style.width = r.width + 'px';
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    result.classList.remove('show');
+    const q = input.value.trim();
+    if (q.length < 2) { drop.classList.remove('open'); return; }
+    posDrop();
+    drop.innerHTML = '<div class="ta-loading">Buscando…</div>';
+    drop.classList.add('open');
+    timer = setTimeout(async () => {
+      const cities = await searchMunicipios(q);
+      if (!cities.length) { drop.innerHTML = '<div class="ta-empty">Sin resultados</div>'; return; }
+      drop._results = cities;
+      drop.innerHTML = cities.slice(0, 6).map((c, i) =>
+        `<div class="ta-item" data-idx="${i}"><div class="ta-main">${c.name}</div><div class="ta-sub">${c.display}</div></div>`
+      ).join('');
+    }, 300);
+  });
+
+  drop.addEventListener('mousedown', e => {
+    const item = e.target.closest('.ta-item');
+    if (!item) return;
+    e.preventDefault();
+    const city = drop._results[+item.dataset.idx];
+    const name = _normCity(city.name);
+    input.value = name;
+    drop.classList.remove('open');
+    const count = (_rankData[name] || {}).total || 0;
+    result.innerHTML = count > 0
+      ? `<span class="hdr-count">${count}</span> reportes registrados en <strong>${name}</strong>`
+      : `No hay reportes registrados en <strong>${name}</strong> todavía`;
+    result.classList.add('show');
+  });
+
+  input.addEventListener('blur', () => setTimeout(() => drop.classList.remove('open'), 200));
+  document.addEventListener('click', e => {
+    if (!input.contains(e.target) && !result.contains(e.target)) result.classList.remove('show');
+  });
+}());
+</script>
+
+<!-- ══════════════════════════════════════════════
+     CONTENIDO EDITORIAL
+════════════════════════════════════════════════ -->
+<style>
+  .ed-spacer { height: 100vh; pointer-events: none; }
+  .ed-wrap { max-width: 920px; margin: 0 auto; padding: 72px 24px 100px; }
+  .ed-section { margin-bottom: 72px; }
+  .ed-h2 { font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .ed-h2 .acc { color: var(--accent); }
+  .ed-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .ed-p { font-size: 15px; line-height: 1.75; color: rgba(237,233,224,0.85); margin-bottom: 14px; }
+
+  .ed-steps { list-style: none; padding: 0; margin: 0; }
+  .ed-steps li { display: flex; align-items: flex-start; gap: 18px; padding: 20px 0; border-bottom: 1px solid var(--border); }
+  .ed-step-num { min-width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ed-step-strong { display: block; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .ed-step-desc { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  .ed-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .ed-stat-card { background: var(--panel-bg); border: 1px solid var(--border); border-radius: 14px; padding: 28px 14px; text-align: center; }
+  .ed-stat-val { font-size: 32px; font-weight: 800; color: var(--accent); display: block; margin-bottom: 8px; min-height: 40px; }
+  .ed-stat-lbl { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+  .ed-faq-wrap { margin-top: 4px; }
+  .faq-item { border-bottom: 1px solid var(--border); }
+  .faq-btn { width: 100%; background: none; border: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 18px 0; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 600; color: var(--text); text-align: left; gap: 12px; }
+  .faq-arrow { font-size: 20px; color: var(--accent); flex-shrink: 0; transition: transform 0.3s; line-height: 1; }
+  .faq-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease, padding-bottom 0.35s; font-size: 14px; line-height: 1.7; color: rgba(237,233,224,0.8); }
+  .faq-item.open .faq-arrow { transform: rotate(45deg); }
+  .faq-item.open .faq-body { max-height: 400px; padding-bottom: 18px; }
+
+  .ed-blog-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+  .ed-blog-card { background: var(--panel-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: transform 0.2s; }
+  .ed-blog-card:hover { transform: translateY(-4px); }
+  .ed-blog-img { height: 130px; display: flex; align-items: center; justify-content: center; font-size: 44px; }
+  .ed-blog-body { padding: 18px; }
+  .ed-blog-tag { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+  .ed-blog-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.45; margin-bottom: 8px; }
+  .ed-blog-excerpt { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  .ed-foot { border-top: 1px solid var(--border); padding: 28px 0 60px; text-align: center; font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  .ed-scroll-hint { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 500; display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none; opacity: 1; transition: opacity 0.6s; }
+  .ed-scroll-hint.hidden { opacity: 0; }
+  .ed-scroll-hint-txt { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .ed-scroll-arrow { width: 20px; height: 20px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); animation: edBounce 1.4s infinite; }
+  @keyframes edBounce { 0%,100%{transform:rotate(45deg) translateY(0)} 50%{transform:rotate(45deg) translateY(5px)} }
+
+  @media (max-width: 768px) {
+    .ed-wrap { padding: 60px 16px 80px; }
+    .ed-h2 { font-size: 20px; }
+    .ed-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .ed-blog-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="ed-scroll-hint" id="edScrollHint">
+  <span class="ed-scroll-hint-txt">Ver más</span>
+  <div class="ed-scroll-arrow"></div>
+</div>
+
+<div class="ed-wrap">
+
+  <!-- 1. ¿QUÉ ES INFIELMAP? -->
+  <section class="ed-section">
+    <h2 class="ed-h2"><span class="acc">¿Qué es</span> InfielMap?</h2>
+    <p class="ed-sub">El primer mapa colaborativo y anónimo de infidelidades en España.</p>
+    <p class="ed-p">España tiene fama de ser un país pasional, pero nadie hablaba de esto en voz alta. InfielMap nació con una idea sencilla: crear un espacio donde las personas puedan dejar constancia —de forma completamente anónima— de que alguien, en algún punto del país, está poniendo los cuernos a otra persona. Sin nombres, sin fotos, sin juicios. Solo datos.</p>
+    <p class="ed-p">La infidelidad es uno de esos temas que todo el mundo conoce de primera mano, pero que la sociedad sigue tratando como un secreto. Un 36% de los españoles reconoce haber sido infiel en alguna relación, según encuestas recientes. Sin embargo, los datos concretos sobre dónde, cuándo y entre quiénes ocurre siguen siendo un misterio. InfielMap intenta poner luz en ese misterio.</p>
+    <p class="ed-p">Cada punto en el mapa representa un informe enviado por un usuario real: alguien que vio algo, sospechó algo, o quiso dejar rastro de algo. La ciudad de origen y el destino son los únicos datos geográficos que recogemos. El resto es silencio. Pero ese silencio colectivo empieza a contar una historia.</p>
+    <p class="ed-p">Lo que empezó como un experimento curioso se ha convertido en una fuente de datos sociales inesperadamente reveladora. Puedes estar mirando el mapa ahora mismo y ver que algo ocurrió hoy, en tu ciudad, a escasos kilómetros de donde estás leyendo esto.</p>
+  </section>
+
+  <!-- 2. ¿CÓMO FUNCIONA? -->
+  <section class="ed-section">
+    <h2 class="ed-h2"><span class="acc">¿Cómo</span> funciona?</h2>
+    <p class="ed-sub">En cuatro pasos, del radar de tu intuición al mapa en tiempo real.</p>
+    <ol class="ed-steps">
+      <li>
+        <div class="ed-step-num">1</div>
+        <div><strong class="ed-step-strong">Detectas algo raro</strong><span class="ed-step-desc">Una conversación sospechosa, un cambio de comportamiento, o simplemente lo sabes. Ese momento en el que algo no encaja.</span></div>
+      </li>
+      <li>
+        <div class="ed-step-num">2</div>
+        <div><strong class="ed-step-strong">Visitas InfielMap</strong><span class="ed-step-desc">Abres el mapa. Ves los puntos que ya existen. Quizá reconoces tu ciudad entre ellos. Decides contribuir.</span></div>
+      </li>
+      <li>
+        <div class="ed-step-num">3</div>
+        <div><strong class="ed-step-strong">Rellenas el formulario anónimo</strong><span class="ed-step-desc">Indicas el género de la persona infiel, la ciudad de origen y el destino del encuentro. Sin nombres ni datos personales. Solo la esencia del dato.</span></div>
+      </li>
+      <li>
+        <div class="ed-step-num">4</div>
+        <div><strong class="ed-step-strong">El mapa se actualiza al instante</strong><span class="ed-step-desc">Tu informe aparece inmediatamente en el mapa y en el feed de actividad reciente. En segundos forma parte del registro colectivo de InfielMap.</span></div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- 3. LO QUE NOS DICEN LOS DATOS -->
+  <section class="ed-section">
+    <h2 class="ed-h2">Lo que nos dicen <span class="acc">los datos</span></h2>
+    <p class="ed-sub">Estadísticas reales calculadas a partir de los informes registrados en InfielMap.</p>
+    <div class="ed-stat-grid">
+      <div class="ed-stat-card">
+        <span class="ed-stat-val" id="edStatTotal">—</span>
+        <div class="ed-stat-lbl">Informes registrados<br>en total</div>
+      </div>
+      <div class="ed-stat-card">
+        <span class="ed-stat-val" id="edStatPctM">—</span>
+        <div class="ed-stat-lbl">De los infieles<br>son hombres</div>
+      </div>
+      <div class="ed-stat-card">
+        <span class="ed-stat-val" id="edStatCity">—</span>
+        <div class="ed-stat-lbl">Ciudad más activa<br>del mapa</div>
+      </div>
+      <div class="ed-stat-card">
+        <span class="ed-stat-val" id="edStatDay">—</span>
+        <div class="ed-stat-lbl">Día de la semana<br>con más actividad</div>
+      </div>
+      <div class="ed-stat-card">
+        <span class="ed-stat-val" id="edStatProf">—</span>
+        <div class="ed-stat-lbl">Profesión más infiel<br>según los datos</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. FAQ -->
+  <section class="ed-section">
+    <h2 class="ed-h2">Preguntas <span class="acc">frecuentes</span></h2>
+    <p class="ed-sub">Todo lo que necesitas saber sobre cómo funciona InfielMap.</p>
+    <div class="ed-faq-wrap" id="edFaqList">
+      <div class="faq-item">
+        <button class="faq-btn" type="button"><span>¿Es completamente anónimo?</span><span class="faq-arrow">+</span></button>
+        <div class="faq-body">Sí. InfielMap no solicita ningún dato personal: sin registro, sin email, sin número de teléfono. Los únicos datos que guardamos son el género de la persona infiel, la ciudad de origen y el destino del encuentro. Es imposible identificar a nadie a través de un informe.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" type="button"><span>¿Puedo mencionar nombres o denunciar a alguien?</span><span class="faq-arrow">+</span></button>
+        <div class="faq-body">No. El formulario de InfielMap no permite introducir nombres, apellidos, fotografías ni ningún dato identificativo. El objetivo es ofrecer datos estadísticos agregados, no señalar a personas individuales. Cualquier intento de doxing queda fuera del alcance de esta plataforma.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" type="button"><span>¿Los datos son verificados?</span><span class="faq-arrow">+</span></button>
+        <div class="faq-body">InfielMap es una plataforma de contribución ciudadana anónima. Los informes no se verifican individualmente, pero la agregación estadística de miles de datos ofrece patrones sociales con valor informativo. Tratamos los datos como tendencias, no como certezas absolutas.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" type="button"><span>¿Con qué frecuencia se actualiza el mapa?</span><span class="faq-arrow">+</span></button>
+        <div class="faq-body">El mapa se actualiza en tiempo real. Cada nuevo informe enviado por un usuario aparece en el mapa y en el feed de actividad reciente en cuestión de segundos. También utilizamos un sistema de refresco automático para mantener el mapa vivo en todo momento.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" type="button"><span>¿Puedo eliminar un informe una vez enviado?</span><span class="faq-arrow">+</span></button>
+        <div class="faq-body">No es posible. Dado que los informes son completamente anónimos y no están vinculados a ningún usuario registrado, no existe manera de autenticar que quien solicita la eliminación es quien lo envió. Esta política refuerza el carácter estadístico y anónimo de la plataforma.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" type="button"><span>¿Por qué no aparece mi ciudad en el mapa?</span><span class="faq-arrow">+</span></button>
+        <div class="faq-body">Solo aparecen en el mapa las ciudades para las que existen informes registrados. Si tu ciudad no tiene puntos es porque, hasta ahora, nadie ha reportado actividad desde ella. Eso puede cambiar en cualquier momento.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. CURIOSIDADES -->
+  <section class="ed-section">
+    <h2 class="ed-h2">Curiosidades sobre <span class="acc">la infidelidad</span></h2>
+    <p class="ed-sub">Artículos basados en estudios, datos y lo que revelan los patrones de InfielMap.</p>
+    <div class="ed-blog-grid">
+      <article class="ed-blog-card">
+        <div class="ed-blog-img" style="background:linear-gradient(135deg,#1E2438 0%,#2A1830 100%);">💼</div>
+        <div class="ed-blog-body">
+          <div class="ed-blog-tag">Sociología</div>
+          <div class="ed-blog-title">Las profesiones más infieles según los estudios</div>
+          <div class="ed-blog-excerpt">Comerciales, médicos y obreros encabezan los rankings de infidelidad a nivel europeo. Los datos de InfielMap coinciden sorprendentemente con los estudios académicos sobre el tema. El patrón tiene que ver con el tiempo fuera de casa y la exposición social.</div>
+        </div>
+      </article>
+      <article class="ed-blog-card">
+        <div class="ed-blog-img" style="background:linear-gradient(135deg,#1E2438 0%,#1E2A20 100%);">🔬</div>
+        <div class="ed-blog-body">
+          <div class="ed-blog-tag">Ciencia</div>
+          <div class="ed-blog-title">¿Por qué engañan más los hombres? Lo que dice la ciencia</div>
+          <div class="ed-blog-excerpt">Los datos de InfielMap confirman lo que la psicología evolutiva lleva décadas estudiando: los hombres representan el porcentaje mayor de infieles registrados. Pero los motivos son más complejos y matizados de lo que parece a primera vista.</div>
+        </div>
+      </article>
+      <article class="ed-blog-card">
+        <div class="ed-blog-img" style="background:linear-gradient(135deg,#1E2438 0%,#2A1E18 100%);">🗺️</div>
+        <div class="ed-blog-body">
+          <div class="ed-blog-tag">Datos</div>
+          <div class="ed-blog-title">Las ciudades españolas con más infidelidades reportadas</div>
+          <div class="ed-blog-excerpt">Madrid y Barcelona lideran el ranking, pero hay sorpresas inesperadas entre las ciudades medianas. Analizamos los patrones geográficos de InfielMap y los comparamos con los índices de divorcios por municipio en España.</div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="ed-foot">
+    InfielMap es una plataforma de datos sociales anónimos. No nos hacemos responsables del uso que los usuarios hagan de la información.<br>
+    Los datos son contribuciones de la comunidad y tienen carácter estadístico, no probatorio.
+  </div>
+
+</div>
+
+<script>
+(function() {
+  async function loadEditorialStats() {
+    try {
+      const [all, prof] = await Promise.all([
+        sbRestSelect('select=origin_city,created_at,gender&limit=10000'),
+        sbRestSelect('select=profession&limit=10000'),
+      ]);
+      const el = id => document.getElementById(id);
+      el('edStatTotal').textContent = all.length.toLocaleString('es-ES');
+      const males = all.filter(r => r.gender === 'm' || r.gender === 'gm').length;
+      el('edStatPctM').textContent = all.length ? Math.round(males / all.length * 100) + '%' : '—';
+      const cc = {};
+      all.forEach(r => { if (r.origin_city) cc[r.origin_city] = (cc[r.origin_city] || 0) + 1; });
+      const topCity = Object.entries(cc).sort((a, b) => b[1] - a[1])[0];
+      el('edStatCity').textContent = topCity ? topCity[0] : '—';
+      const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      const dc = [0, 0, 0, 0, 0, 0, 0];
+      all.forEach(r => { if (r.created_at) dc[new Date(r.created_at).getDay()]++; });
+      el('edStatDay').textContent = dayNames[dc.indexOf(Math.max(...dc))];
+      const pc = {};
+      prof.forEach(r => { if (r.profession) pc[r.profession] = (pc[r.profession] || 0) + 1; });
+      const topProf = Object.entries(pc).sort((a, b) => b[1] - a[1])[0];
+      el('edStatProf').textContent = topProf ? topProf[0].split('/')[0] : '—';
+    } catch (e) { /* silently fail */ }
+  }
+
+  document.querySelectorAll('#edFaqList .faq-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('#edFaqList .faq-item').forEach(i => i.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
+    });
+  });
+
+  window.addEventListener('scroll', function onEdScroll() {
+    if (window.scrollY > 80) {
+      document.getElementById('edScrollHint').classList.add('hidden');
+      window.removeEventListener('scroll', onEdScroll);
+    }
+  }, { passive: true });
+
+  setTimeout(() => loadEditorialStats(), 1800);
+}());
 </script>
 </body>
 </html>
