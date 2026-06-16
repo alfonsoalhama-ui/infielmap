@@ -2073,9 +2073,9 @@ const FICTICIAS_POOL = (function() {
 })();
 
 const PROFESSIONS = [
-  { name: 'Banquero',                 w: 15 },
+  { name: 'Médico/Enfermero',         w: 15 },
   { name: 'Piloto de avión',          w: 13 },
-  { name: 'Médico/Enfermero',         w: 12 },
+  { name: 'Banquero',                 w: 12 },
   { name: 'CEO de empresa',           w: 11 },
   { name: 'Deportista',               w: 10 },
   { name: 'Celebrity/Famoso',         w:  9 },
@@ -2115,6 +2115,8 @@ const _stats = { total: 0, today: 0, week: 0, male: 0, female: 0, totalGender: 0
 // Ranking en memoria: { ciudad: { total, week, today } }
 const _rankData = {};
 const _profData = {};
+// Día de la semana con más actividad — calculado de los mismos datos que el ranking, nunca por separado
+const _dayData = [0, 0, 0, 0, 0, 0, 0]; // Dom..Sáb
 
 function _renderRanking() {
   const medals = ['gold','silver','bronze','',''];
@@ -2554,7 +2556,7 @@ async function actualizarTodosLosContadores() {
     sbRestCount(`&created_at=gte.${todayISO}`),
     sbRestCount(`&created_at=gte.${weekISO}`),
     sbRestSelect('select=gender&limit=10000'),
-    sbRestSelect('select=origin_city&limit=10000'),
+    sbRestSelect('select=origin_city,created_at&limit=10000'),
     sbRestSelect(`select=origin_city&created_at=gte.${weekISO}&limit=10000`),
     sbRestSelect(`select=origin_city&created_at=gte.${todayISO}&limit=10000`),
     sbRestSelect('select=profession&limit=10000'),
@@ -2574,10 +2576,12 @@ async function actualizarTodosLosContadores() {
 
   if (cityData.length > 0) {
     Object.keys(_rankData).forEach(k => delete _rankData[k]);
+    _dayData.fill(0);
 
     cityData.forEach(r => {
       if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
       _rankData[r.origin_city].total++;
+      if (r.created_at) _dayData[new Date(r.created_at).getDay()]++;
     });
     wkCityData.forEach(r => {
       if (!_rankData[r.origin_city]) _rankData[r.origin_city] = { total: 0, week: 0, today: 0 };
@@ -3349,25 +3353,18 @@ init().catch(err => console.error('Init error:', err));
 (function() {
   async function loadEditorialStats() {
     try {
-      const [all, prof] = await Promise.all([
-        sbRestSelect('select=origin_city,created_at,gender&limit=10000'),
-        sbRestSelect('select=profession&limit=10000'),
-      ]);
+      // Misma fuente que el panel lateral (ranking, contadores) — nunca una consulta aparte,
+      // así estos 5 datos SIEMPRE coinciden con lo que se ve en el resto de la página.
+      await actualizarTodosLosContadores();
       const el = id => document.getElementById(id);
-      el('edStatTotal').textContent = all.length.toLocaleString('es-ES');
-      const males = all.filter(r => r.gender === 'm' || r.gender === 'gm').length;
-      el('edStatPctM').textContent = all.length ? Math.round(males / all.length * 100) + '%' : '—';
-      const cc = {};
-      all.forEach(r => { if (r.origin_city) cc[r.origin_city] = (cc[r.origin_city] || 0) + 1; });
-      const topCity = Object.entries(cc).sort((a, b) => b[1] - a[1])[0];
+      el('edStatTotal').textContent = _stats.total.toLocaleString('es-ES');
+      const mPct = _stats.totalGender ? Math.round(_stats.male / _stats.totalGender * 100) : null;
+      el('edStatPctM').textContent = mPct !== null ? mPct + '%' : '—';
+      const topCity = Object.entries(_rankData).sort((a, b) => b[1].total - a[1].total)[0];
       el('edStatCity').textContent = topCity ? topCity[0] : '—';
       const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-      const dc = [0, 0, 0, 0, 0, 0, 0];
-      all.forEach(r => { if (r.created_at) dc[new Date(r.created_at).getDay()]++; });
-      el('edStatDay').textContent = dayNames[dc.indexOf(Math.max(...dc))];
-      const pc = {};
-      prof.forEach(r => { if (r.profession) pc[r.profession] = (pc[r.profession] || 0) + 1; });
-      const topProf = Object.entries(pc).sort((a, b) => b[1] - a[1])[0];
+      el('edStatDay').textContent = dayNames[_dayData.indexOf(Math.max(..._dayData))];
+      const topProf = Object.entries(_profData).sort((a, b) => b[1].total - a[1].total)[0];
       el('edStatProf').textContent = topProf ? topProf[0].split('/')[0] : '—';
     } catch (e) { /* silently fail */ }
   }
