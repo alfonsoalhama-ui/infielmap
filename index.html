@@ -62,25 +62,6 @@
     .logo-text .infiel { color: var(--text); }
     .logo-text .mapword { color: var(--muted); font-weight: 600; }
 
-    .total-counter {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      font-size: 12px;
-      color: var(--muted);
-      letter-spacing: 0;
-    }
-    #totalCounter {
-      font-family: 'Poppins', sans-serif;
-      font-size: 22px;
-      color: var(--accent);
-      font-weight: 700;
-      min-width: 64px;
-      text-align: right;
-      transition: color 0.4s;
-    }
-    #totalCounter.bump { color: #fff; }
-
     /* ── HEADER SEARCH ── */
     .header-search { position: relative; width: 250px; }
     .header-search input {
@@ -98,7 +79,6 @@
     }
     .hdr-result.show { display: block; }
     .hdr-result .hdr-count { font-size: 18px; font-weight: 800; color: var(--accent); }
-    @media (max-width: 900px) { .header-search { display: none; } }
 
     /* ── AD BANNER ── */
     .ad-banner {
@@ -1171,11 +1151,6 @@
     <div class="ta-dropdown" id="hdrSearchDrop"></div>
     <div class="hdr-result" id="hdrResult"></div>
   </div>
-
-  <div class="total-counter">
-    <span>reportes registrados</span>
-    <span id="totalCounter">—</span>
-  </div>
 </header>
 <div class="panel-backdrop" id="panelBackdrop"></div>
 <button id="panelToggleBtn" aria-label="Abrir/cerrar panel">☰</button>
@@ -2160,7 +2135,6 @@ function _renderProfRanking() {
 
 function _updateStatsDisplay() {
   const fmt = n => n.toLocaleString('es-ES');
-  document.getElementById('totalCounter').textContent = fmt(_stats.total);
   document.getElementById('statToday').textContent    = fmt(_stats.today);
   document.getElementById('statWeek').textContent     = fmt(_stats.week);
   const n = _stats.totalGender;
@@ -2206,9 +2180,6 @@ function bumpStats(gender, createdAt, city, profession) {
     _renderProfRanking();
   }
 
-  const cEl = document.getElementById('totalCounter');
-  cEl.classList.add('bump');
-  setTimeout(() => cEl.classList.remove('bump'), 600);
   _updateStatsDisplay();
 }
 
