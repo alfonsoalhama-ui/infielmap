@@ -1211,6 +1211,7 @@
     <!-- 4c. Ranking de profesiones -->
     <div class="section-title" style="margin-top:6px;">Profesiones más pilladas</div>
     <div class="ranking-list" id="profRankingList"></div>
+    <button class="ranking-view-all" id="openProfRankFull">Ver ranking completo →</button>
 
 
   </aside>
@@ -1403,6 +1404,28 @@
           </tr>
         </thead>
         <tbody id="rankfullBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="rankfull-overlay" id="profRankfullOverlay">
+  <div class="rankfull-box">
+    <button class="rankfull-close" id="profRankfullClose">✕</button>
+    <div class="rankfull-title">Ranking completo de profesiones</div>
+    <input type="text" class="rankfull-search" id="profRankfullSearch" placeholder="Busca una profesión…" autocomplete="off"/>
+    <div class="rankfull-table-wrap">
+      <table class="rankfull-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Profesión</th>
+            <th>Total</th>
+            <th>Semana</th>
+            <th>Hoy</th>
+          </tr>
+        </thead>
+        <tbody id="profRankfullBody"></tbody>
       </table>
     </div>
   </div>
@@ -2878,6 +2901,68 @@ function showToast(msg) {
     const q = e.target.value.trim().toLowerCase();
     if (!q) { renderRows(_allRows, ''); return; }
     const filtered = _allRows.filter(r => r.city.toLowerCase().includes(q));
+    renderRows(filtered.length ? filtered : _allRows, q);
+  });
+})();
+
+// ── RANKING COMPLETO DE PROFESIONES ──────────────────────────
+(function() {
+  let _allRows = []; // [{pos, profession, total, week, today}]
+
+  function buildRows() {
+    return Object.entries(_profData)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([profession, d], i) => ({ pos: i + 1, profession, total: d.total, week: d.week, today: d.today }));
+  }
+
+  function posClass(pos) {
+    if (pos === 1) return 'gold';
+    if (pos === 2) return 'silver';
+    if (pos === 3) return 'bronze';
+    return '';
+  }
+
+  function renderRows(rows, highlight) {
+    const tbody = document.getElementById('profRankfullBody');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="rankfull-empty">No hay datos todavía.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r => {
+      const hl = highlight && r.profession.toLowerCase().includes(highlight) ? ' highlighted' : '';
+      return `<tr class="${hl}">
+        <td class="rankfull-pos ${posClass(r.pos)}">${r.pos}</td>
+        <td class="rankfull-city">${r.profession}</td>
+        <td class="rankfull-num">${r.total}</td>
+        <td class="rankfull-num">${r.week}</td>
+        <td class="rankfull-num">${r.today}</td>
+      </tr>`;
+    }).join('');
+    if (highlight) {
+      const row = tbody.querySelector('.highlighted');
+      if (row) setTimeout(() => row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
+    }
+  }
+
+  function openProfRankFull() {
+    _allRows = buildRows();
+    renderRows(_allRows, '');
+    document.getElementById('profRankfullSearch').value = '';
+    document.getElementById('profRankfullOverlay').classList.add('active');
+  }
+
+  document.getElementById('openProfRankFull').addEventListener('click', openProfRankFull);
+  document.getElementById('profRankfullClose').addEventListener('click', () => {
+    document.getElementById('profRankfullOverlay').classList.remove('active');
+  });
+  document.getElementById('profRankfullOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) document.getElementById('profRankfullOverlay').classList.remove('active');
+  });
+
+  document.getElementById('profRankfullSearch').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) { renderRows(_allRows, ''); return; }
+    const filtered = _allRows.filter(r => r.profession.toLowerCase().includes(q));
     renderRows(filtered.length ? filtered : _allRows, q);
   });
 })();
