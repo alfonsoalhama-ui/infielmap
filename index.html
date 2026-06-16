@@ -2536,6 +2536,24 @@ async function sbRestSelect(params) {
   } catch { return []; }
 }
 
+// Pagina automáticamente de 1000 en 1000 — Supabase ignora &limit= y nunca
+// devuelve más de 1000 filas por petición si no se pagina con offset.
+async function sbRestSelectAll(params) {
+  const PAGE = 1000;
+  const results = [];
+  for (let offset = 0; offset < 100 * PAGE; offset += PAGE) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?${params}&limit=${PAGE}&offset=${offset}`, { headers: _SB_HEADERS });
+      if (!res.ok) break;
+      const page = await res.json();
+      if (!Array.isArray(page) || !page.length) break;
+      results.push(...page);
+      if (page.length < PAGE) break; // última página — no hay más
+    } catch { break; }
+  }
+  return results;
+}
+
 // ── STATS ────────────────────────────────────────────────────
 // Medianoche UTC de hoy — misma referencia en ranking e historial
 function getTodayUTC() {
@@ -2556,13 +2574,13 @@ async function actualizarTodosLosContadores() {
     sbRestCount(''),
     sbRestCount(`&created_at=gte.${todayISO}`),
     sbRestCount(`&created_at=gte.${weekISO}`),
-    sbRestSelect('select=gender&limit=10000'),
-    sbRestSelect('select=origin_city,created_at&limit=10000'),
-    sbRestSelect(`select=origin_city&created_at=gte.${weekISO}&limit=10000`),
-    sbRestSelect(`select=origin_city&created_at=gte.${todayISO}&limit=10000`),
-    sbRestSelect('select=profession&limit=10000'),
-    sbRestSelect(`select=profession&created_at=gte.${weekISO}&limit=10000`),
-    sbRestSelect(`select=profession&created_at=gte.${todayISO}&limit=10000`),
+    sbRestSelectAll('select=gender'),
+    sbRestSelectAll('select=origin_city,created_at'),
+    sbRestSelectAll(`select=origin_city&created_at=gte.${weekISO}`),
+    sbRestSelectAll(`select=origin_city&created_at=gte.${todayISO}`),
+    sbRestSelectAll('select=profession'),
+    sbRestSelectAll(`select=profession&created_at=gte.${weekISO}`),
+    sbRestSelectAll(`select=profession&created_at=gte.${todayISO}`),
   ]);
 
   _real24h = todayCount;
